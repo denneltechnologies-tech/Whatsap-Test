@@ -13,8 +13,6 @@ services:
         condition: service_healthy
       evolution-postgres:
         condition: service_healthy
-    ports:
-      - "127.0.0.1:8080:8080"
     volumes:
       - evolution_instances:/evolution/instances
       - evolution_uploads:/evolution/public/uploads
@@ -31,15 +29,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  frontend:
-    container_name: evolution_frontend
-    image: evoapicloud/evolution-manager:latest
-    restart: always
-    ports:
-      - "3000:80"
-    networks:
-      - evolution-net
 
   redis:
     container_name: evolution_redis
