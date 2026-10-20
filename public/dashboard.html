@@ -248,6 +248,21 @@
       100% { opacity: 1; }
     }
 
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255, 255, 255, 0.15);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
     .top-actions {
       display: flex;
       align-items: center;
@@ -1123,17 +1138,23 @@
 
   <!-- QR Code Modal -->
   <div id="qrModal" class="modal-backdrop">
-    <div class="modal-window">
-      <div class="card-header">
+    <div class="modal-window" style="max-width: 440px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h3 class="card-title">Pair WhatsApp Account</h3>
         <button onclick="closeModal('qrModal')" class="btn btn-secondary" style="padding: 4px 8px;">✕</button>
       </div>
       <div class="qr-container">
         <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Open WhatsApp on your phone, go to <b>Linked Devices</b> &gt; <b>Link a Device</b>, and scan the QR code below.</p>
         <div id="qrCodeWrapper">
-          <div style="padding: 40px; color: var(--text-dim);">Generating QR Code...</div>
+          <div style="padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;">
+            <div class="spinner"></div>
+            <div style="color: var(--text-dim); font-size: 14px;">Initializing connection...</div>
+          </div>
         </div>
-        <button onclick="fetchQrCode()" class="btn btn-secondary" style="margin-top: 12px;">Refresh QR Code</button>
+        <div style="display: flex; gap: 8px; justify-content: center; margin-top: 14px;">
+          <button onclick="fetchQrCode()" class="btn btn-secondary">Refresh QR Code</button>
+          <button onclick="closeModal('qrModal')" class="btn btn-secondary">Close</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1294,6 +1315,9 @@
     }
     function closeModal(id) {
       document.getElementById(id).classList.remove('open');
+      if (id === 'qrModal') {
+        stopQrPolling();
+      }
     }
 
     // Tab Navigation
@@ -1314,25 +1338,28 @@
     async function loadInstances() {
       try {
         const instances = await apiRequest('/instances');
-        instancesList = instances;
+        instancesList = instances || [];
         const select = document.getElementById('instanceSelect');
         select.innerHTML = '';
 
-        if (!instances || instances.length === 0) {
-          select.innerHTML = '<option value="">No instances found</option>';
-          return;
+        if (!instancesList || instancesList.length === 0) {
+          instancesList = [{ name: 'default', state: 'closed' }];
         }
 
-        instances.forEach(inst => {
+        instancesList.forEach(inst => {
           const opt = document.createElement('option');
           opt.value = inst.name;
-          opt.textContent = `${inst.name} (${inst.state || 'closed'})`;
+          const statusText = inst.state === 'open' ? 'Connected' : (inst.state === 'connecting' ? 'Connecting...' : 'Disconnected');
+          opt.textContent = `${inst.name} (${statusText})`;
           select.appendChild(opt);
         });
 
-        currentInstance = instances[0].name;
+        if (!currentInstance || !instancesList.some(i => i.name === currentInstance)) {
+          currentInstance = instancesList[0].name;
+        }
         select.value = currentInstance;
-        updateConnectionBadge(instances[0]);
+        const currentMeta = instancesList.find(i => i.name === currentInstance);
+        updateConnectionBadge(currentMeta || { state: 'closed' });
       } catch (err) {
         console.error('Error loading instances:', err);
       }
@@ -1819,30 +1846,113 @@
       setTimeout(() => selectConversation(jid), 300);
     }
 
-    // QR Code Connect
+    // QR Code Connect & Polling
+    let qrPollTimer = null;
+
+    function stopQrPolling() {
+      if (qrPollTimer) {
+        clearInterval(qrPollTimer);
+        qrPollTimer = null;
+      }
+    }
+
+    function startQrPolling(instanceName) {
+      stopQrPolling();
+      qrPollTimer = setInterval(async () => {
+        try {
+          const stats = await apiRequest(`/status?instanceName=${encodeURIComponent(instanceName)}`);
+          const targetInst = stats?.waInstances?.find(i => i.instanceName === instanceName);
+          if (targetInst && targetInst.state === 'open') {
+            stopQrPolling();
+            const wrapper = document.getElementById('qrCodeWrapper');
+            if (wrapper) {
+              wrapper.innerHTML = `
+                <div style="padding: 24px; text-align: center;">
+                  <div style="font-size: 48px; margin-bottom: 8px;">✅</div>
+                  <div style="color: var(--success); font-weight: 700; font-size: 18px;">WhatsApp Connected!</div>
+                  <div style="color: var(--text-muted); font-size: 13px; margin: 8px 0 16px;">Instance <b>${escapeHtml(instanceName)}</b> is linked and AI is active.</div>
+                  <button onclick="closeModal('qrModal')" class="btn btn-primary">Done</button>
+                </div>
+              `;
+            }
+            await loadInstances();
+            loadDashboardStats();
+          }
+        } catch (pollErr) {
+          console.warn('QR poll status check error:', pollErr);
+        }
+      }, 3000);
+    }
+
     async function openQrModal() {
+      if (!currentInstance) {
+        currentInstance = 'default';
+      }
       openModal('qrModal');
       await fetchQrCode();
     }
 
     async function fetchQrCode() {
-      if (!currentInstance) return;
+      const targetInstance = currentInstance || 'default';
       const wrapper = document.getElementById('qrCodeWrapper');
-      wrapper.innerHTML = '<div style="padding: 40px; color: var(--text-dim);">Fetching pairing QR code...</div>';
+      wrapper.innerHTML = `
+        <div style="padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;">
+          <div class="spinner"></div>
+          <div style="color: var(--text-main); font-size: 14px; font-weight: 600;">Generating QR Code for "${escapeHtml(targetInstance)}"...</div>
+          <div style="color: var(--text-muted); font-size: 12px;">Connecting to WhatsApp network, please wait a few seconds...</div>
+        </div>
+      `;
 
       try {
-        const res = await apiRequest(`/instances/${encodeURIComponent(currentInstance)}/connect`);
+        const res = await apiRequest(`/instances/${encodeURIComponent(targetInstance)}/connect`);
         if (res.base64) {
-          wrapper.innerHTML = `<img src="${res.base64}" class="qr-image" alt="WhatsApp QR Code">`;
+          wrapper.innerHTML = `
+            <div style="background: #ffffff; padding: 16px; border-radius: 12px; display: inline-block; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin: 8px 0;">
+              <img src="${res.base64}" class="qr-image" style="width: 256px; height: 256px; display: block; margin: 0 auto;" alt="WhatsApp QR Code">
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">
+              <span style="color: var(--success); font-weight: bold;">●</span> Listening for phone scan... (Auto-detecting connection)
+            </div>
+          `;
+          startQrPolling(targetInstance);
         } else if (res.code) {
-          wrapper.innerHTML = `<div style="font-size: 24px; font-weight: 700; letter-spacing: 2px; padding: 20px;">Pairing Code: ${res.code}</div>`;
-        } else if (res.count !== undefined) {
-          wrapper.innerHTML = `<div style="color: var(--success); font-weight: 600; padding: 20px;">Instance is already connected!</div>`;
+          wrapper.innerHTML = `
+            <div style="padding: 20px; text-align: center;">
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Pairing Code:</div>
+              <div style="font-size: 28px; font-weight: 800; letter-spacing: 4px; color: var(--primary); background: var(--surface-light); padding: 12px 20px; border-radius: 8px; display: inline-block;">
+                ${escapeHtml(res.code)}
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">Enter this code on your phone in WhatsApp &gt; Linked Devices.</div>
+            </div>
+          `;
+          startQrPolling(targetInstance);
+        } else if (res.state === 'open' || res.count !== undefined) {
+          wrapper.innerHTML = `
+            <div style="padding: 30px; text-align: center;">
+              <div style="font-size: 44px; margin-bottom: 8px;">✅</div>
+              <div style="color: var(--success); font-weight: 700; font-size: 18px;">WhatsApp Connected!</div>
+              <div style="color: var(--text-muted); font-size: 13px; margin: 8px 0 16px;">Instance <b>${escapeHtml(targetInstance)}</b> is online and ready.</div>
+              <button onclick="closeModal('qrModal')" class="btn btn-primary">Done</button>
+            </div>
+          `;
+          stopQrPolling();
+          await loadInstances();
         } else {
-          wrapper.innerHTML = `<div style="padding: 20px; color: var(--text-muted);">${JSON.stringify(res)}</div>`;
+          wrapper.innerHTML = `
+            <div style="padding: 24px; text-align: center;">
+              <div style="color: var(--text-main); font-size: 14px; margin-bottom: 8px;">${escapeHtml(res.message || 'Initializing connection...')}</div>
+              <button onclick="fetchQrCode()" class="btn btn-primary" style="margin-top: 8px;">Refresh QR Code</button>
+            </div>
+          `;
         }
       } catch (err) {
-        wrapper.innerHTML = `<div style="color: var(--danger); padding: 20px;">Error generating QR: ${err.message}</div>`;
+        wrapper.innerHTML = `
+          <div style="padding: 24px; text-align: center; color: var(--danger);">
+            <div style="font-weight: 600; margin-bottom: 6px;">Connection Error</div>
+            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">${escapeHtml(err.message)}</div>
+            <button onclick="fetchQrCode()" class="btn btn-secondary">Retry</button>
+          </div>
+        `;
       }
     }
 

@@ -1,6 +1,8 @@
+import { InstanceController } from '@api/controllers/instance.controller';
 import { authGuard } from '@api/guards/auth.guard';
 import { PrismaRepository } from '@api/repository/repository.service';
 import { WAMonitoringService } from '@api/services/monitor.service';
+import { Integration } from '@api/types/wa.types';
 import { Auth, ConfigService, CustomAi as CustomAiEnv } from '@config/env.config';
 import { Logger } from '@config/logger.config';
 import { NextFunction, Request, RequestHandler, Response, Router } from 'express';
@@ -28,6 +30,7 @@ export class CustomAiRouter {
     private readonly waMonitor: WAMonitoringService,
     private readonly prismaRepository: PrismaRepository,
     private readonly configService: ConfigService,
+    private readonly instanceController?: InstanceController,
   ) {
     this.router = Router();
     this.initRoutes();
@@ -115,7 +118,7 @@ export class CustomAiRouter {
         });
 
         // Enrich with live waMonitor state
-        const enriched = instances.map((inst) => {
+        let enriched = instances.map((inst) => {
           const live = this.waMonitor.waInstances[inst.name];
           return {
             ...inst,
@@ -123,6 +126,35 @@ export class CustomAiRouter {
             qr: live?.connectionStatus?.qrcode,
           };
         });
+
+        // If no instances exist yet in database, auto-create the "default" instance
+        if (enriched.length === 0 && this.instanceController) {
+          try {
+            this.logger.info('No instances found in DB, auto-creating "default" instance with Baileys...');
+            await this.instanceController.createInstance({
+              instanceName: 'default',
+              integration: Integration.WHATSAPP_BAILEYS,
+              qrcode: true,
+            } as any);
+
+            const live = this.waMonitor.waInstances['default'];
+            enriched = [
+              {
+                id: 'default',
+                name: 'default',
+                connectionStatus: live?.connectionStatus?.state || 'connecting',
+                number: null,
+                profileName: 'Default',
+                profilePicUrl: null,
+                updatedAt: new Date(),
+                state: live?.connectionStatus?.state || 'connecting',
+                qr: live?.connectionStatus?.qrcode,
+              },
+            ];
+          } catch (autoErr: any) {
+            this.logger.warn(`Could not auto-create default instance: ${autoErr?.message || autoErr}`);
+          }
+        }
 
         return res.json(enriched);
       } catch (err: any) {
@@ -134,12 +166,103 @@ export class CustomAiRouter {
     this.router.get('/instances/:instanceName/connect', auth, async (req: Request, res: Response) => {
       try {
         const { instanceName } = req.params;
-        const live = this.waMonitor.waInstances[instanceName];
+        let live = this.waMonitor.waInstances[instanceName];
+
         if (!live) {
-          return res.status(404).json({ error: `Instance ${instanceName} not loaded` });
+          // Check if instance exists in database
+          const dbInstance = await this.prismaRepository.instance.findFirst({
+            where: { name: instanceName },
+          });
+
+          if (!dbInstance && this.instanceController) {
+            this.logger.info(`Instance "${instanceName}" not found in DB. Auto-creating instance...`);
+            try {
+              const created: any = await this.instanceController.createInstance({
+                instanceName,
+                integration: Integration.WHATSAPP_BAILEYS,
+                qrcode: true,
+              } as any);
+
+              if (created?.qrcode?.base64) {
+                return res.json(created.qrcode);
+              }
+            } catch (createErr: any) {
+              this.logger.error(`Error auto-creating instance ${instanceName}: ${createErr?.message || createErr}`);
+            }
+          }
         }
-        const state = await live.connectToWhatsapp();
-        return res.json(state);
+
+        live = this.waMonitor.waInstances[instanceName];
+        if (!live) {
+          return res.status(404).json({ error: `Instance "${instanceName}" could not be loaded or created` });
+        }
+
+        const currentState = live?.connectionStatus?.state;
+        if (currentState === 'open') {
+          return res.json({
+            count: 1,
+            state: 'open',
+            message: 'Instance is already connected',
+          });
+        }
+
+        // If not already connecting, trigger connect
+        if (currentState !== 'connecting') {
+          try {
+            await live.connectToWhatsapp();
+          } catch (connErr: any) {
+            this.logger.warn(`connectToWhatsapp trigger warning: ${connErr?.message || connErr}`);
+          }
+        }
+
+        // Wait up to 6 seconds for QR code generation
+        for (let i = 0; i < 12; i++) {
+          if (live.qrCode?.base64 || live.qrCode?.code) {
+            return res.json(live.qrCode);
+          }
+          if (live.connectionStatus?.state === 'open') {
+            return res.json({
+              count: 1,
+              state: 'open',
+              message: 'Instance connected successfully',
+            });
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+
+        if (live.qrCode?.base64 || live.qrCode?.code) {
+          return res.json(live.qrCode);
+        }
+
+        return res.json({
+          state: live.connectionStatus?.state || 'connecting',
+          message: 'QR code is generating. Please wait a moment and click Refresh.',
+        });
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    });
+
+    // 4b. Explicitly Create Instance
+    this.router.post('/instances', auth, async (req: Request, res: Response) => {
+      try {
+        const { name } = req.body;
+        const instanceName = (name || 'default').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        if (!instanceName) {
+          return res.status(400).json({ error: 'Valid instance name required' });
+        }
+        if (this.waMonitor.waInstances[instanceName]) {
+          return res.json({ message: 'Instance already exists', instanceName });
+        }
+        if (this.instanceController) {
+          const result = await this.instanceController.createInstance({
+            instanceName,
+            integration: Integration.WHATSAPP_BAILEYS,
+            qrcode: true,
+          } as any);
+          return res.status(201).json(result);
+        }
+        return res.status(500).json({ error: 'Instance controller not available' });
       } catch (err: any) {
         return res.status(500).json({ error: err.message });
       }

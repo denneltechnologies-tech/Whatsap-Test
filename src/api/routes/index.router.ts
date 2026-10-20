@@ -9,6 +9,7 @@ import {
   aiConversationController,
   aiSettingsController,
   customAiController,
+  instanceController,
   knowledgeController,
   prismaRepository,
   waMonitor,
@@ -184,6 +185,7 @@ router.use(
     waMonitor,
     prismaRepository,
     configService,
+    instanceController,
   ).router,
 );
 
