@@ -169,14 +169,30 @@ export class CustomAiRouter {
         const number = req.query.number ? String(req.query.number).replace(/[^0-9]/g, '') : null;
         let live = this.waMonitor.waInstances[instanceName];
 
-        if (!live) {
-          // Check if instance exists in database
-          const dbInstance = await this.prismaRepository.instance.findFirst({
-            where: { name: instanceName },
-          });
+        const dbInstance = await this.prismaRepository.instance.findFirst({
+          where: { name: instanceName },
+        });
 
-          if (!dbInstance && this.instanceController) {
-            this.logger.info(`Instance "${instanceName}" not found in DB. Auto-creating instance...`);
+        // Ensure in-memory live instance and DB record exist and are synchronized
+        if (!dbInstance || !live || live.instanceId !== dbInstance.id) {
+          this.logger.info(`Instance "${instanceName}" missing or desynced between DB and memory. Recreating...`);
+          if (live) {
+            try {
+              await live?.client?.logout('Recreate instance');
+              live?.client?.ws?.close();
+              live?.client?.end(undefined);
+            } catch {}
+            delete this.waMonitor.waInstances[instanceName];
+            this.waMonitor.clearDelInstanceTime(instanceName);
+          }
+          if (dbInstance) {
+            await this.prismaRepository.instance.delete({
+              where: { id: dbInstance.id },
+            }).catch(() => {});
+          }
+
+          if (this.instanceController) {
+            this.logger.info(`Creating fresh instance "${instanceName}"...`);
             try {
               const created: any = await this.instanceController.createInstance({
                 instanceName,
@@ -185,6 +201,7 @@ export class CustomAiRouter {
                 number: number || undefined,
               } as any);
 
+              live = this.waMonitor.waInstances[instanceName];
               if (number && (created?.qrcode?.pairingCode || created?.qrcode?.code)) {
                 return res.json(created.qrcode);
               }
@@ -192,7 +209,7 @@ export class CustomAiRouter {
                 return res.json(created.qrcode);
               }
             } catch (createErr: any) {
-              this.logger.error(`Error auto-creating instance ${instanceName}: ${createErr?.message || createErr}`);
+              this.logger.error(`Error creating instance ${instanceName}: ${createErr?.message || createErr}`);
             }
           }
         }
@@ -258,21 +275,24 @@ export class CustomAiRouter {
         const { instanceName } = req.params;
         this.logger.info(`Resetting session for instance "${instanceName}"...`);
 
-        // 1. Delete session from DB
+        // 1. Delete instance from DB (cascades to Session, IntegrationSession, Chats, etc.)
         const dbInst = await this.prismaRepository.instance.findFirst({
           where: { name: instanceName },
         });
         if (dbInst) {
-          await this.prismaRepository.session.deleteMany({
-            where: { sessionId: dbInst.id },
-          }).catch((e) => this.logger.warn(`Session cleanup warning: ${e.message}`));
+          await this.prismaRepository.instance.delete({
+            where: { id: dbInst.id },
+          }).catch((e) => this.logger.warn(`Instance cleanup warning: ${e.message}`));
         }
 
         // 2. Clear instance from waMonitor and event emitter
         try {
           if (this.waMonitor.waInstances[instanceName]) {
-            await this.waMonitor.waInstances[instanceName]?.logoutInstance().catch(() => {});
-            this.waMonitor.deleteInstance(instanceName);
+            await this.waMonitor.waInstances[instanceName]?.client?.logout('Reset instance').catch(() => {});
+            this.waMonitor.waInstances[instanceName]?.client?.ws?.close();
+            this.waMonitor.waInstances[instanceName]?.client?.end(undefined);
+            delete this.waMonitor.waInstances[instanceName];
+            this.waMonitor.clearDelInstanceTime(instanceName);
           }
         } catch (cleanupErr: any) {
           this.logger.warn(`Memory cleanup warning: ${cleanupErr.message}`);

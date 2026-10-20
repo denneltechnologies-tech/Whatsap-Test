@@ -414,7 +414,7 @@ export class BaileysStartupService extends ChannelStartupService {
       await this.prismaRepository.instance.update({
         where: { id: this.instanceId },
         data: { connectionStatus: 'connecting' },
-      });
+      }).catch((e) => this.logger.warn(`Instance connecting status update warning: ${e.message}`));
     }
 
     if (connection) {
@@ -447,7 +447,7 @@ export class BaileysStartupService extends ChannelStartupService {
             disconnectionReasonCode: statusCode,
             disconnectionObject: JSON.stringify(lastDisconnect),
           },
-        });
+        }).catch((e) => this.logger.warn(`Instance close status update warning: ${e.message}`));
 
         if (this.configService.get<Chatwoot>('CHATWOOT').ENABLED && this.localChatwoot?.enabled) {
           this.chatwootService.eventWhatsapp(
@@ -496,7 +496,7 @@ export class BaileysStartupService extends ChannelStartupService {
           profilePicUrl: this.instance.profilePictureUrl,
           connectionStatus: 'open',
         },
-      });
+      }).catch((e) => this.logger.warn(`Instance open status update warning: ${e.message}`));
 
       if (this.configService.get<Chatwoot>('CHATWOOT').ENABLED && this.localChatwoot?.enabled) {
         this.chatwootService.eventWhatsapp(
@@ -579,11 +579,7 @@ export class BaileysStartupService extends ChannelStartupService {
 
     const session = this.configService.get<ConfigSessionPhone>('CONFIG_SESSION_PHONE');
 
-    const browser: WABrowserDescription =
-      session.CLIENT && session.CLIENT !== 'Evolution API'
-        ? [session.CLIENT, session.NAME || 'Chrome', release()]
-        : Browsers.ubuntu('Chrome');
-
+    const browser: WABrowserDescription = Browsers.ubuntu('Chrome');
     const browserOptions = { browser };
 
     if (number || this.phoneNumber) {
