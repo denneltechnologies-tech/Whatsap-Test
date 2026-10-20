@@ -1136,24 +1136,65 @@
 
   </div>
 
-  <!-- QR Code Modal -->
+  <!-- QR Code / Pairing Modal -->
   <div id="qrModal" class="modal-backdrop">
-    <div class="modal-window" style="max-width: 440px;">
-      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 class="card-title">Pair WhatsApp Account</h3>
+    <div class="modal-window" style="max-width: 460px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);">
+        <h3 class="card-title">Link WhatsApp Account</h3>
         <button onclick="closeModal('qrModal')" class="btn btn-secondary" style="padding: 4px 8px;">✕</button>
       </div>
-      <div class="qr-container">
-        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Open WhatsApp on your phone, go to <b>Linked Devices</b> &gt; <b>Link a Device</b>, and scan the QR code below.</p>
+
+      <!-- Pairing Method Switcher -->
+      <div style="display: flex; gap: 8px; padding: 14px 20px 0 20px;">
+        <button id="btnMethodQr" onclick="switchPairMethod('qr')" class="btn btn-primary" style="flex: 1; font-size: 13px; padding: 8px 12px;">
+          📷 Scan QR Code
+        </button>
+        <button id="btnMethodCode" onclick="switchPairMethod('code')" class="btn btn-secondary" style="flex: 1; font-size: 13px; padding: 8px 12px;">
+          🔢 Phone Pairing Code
+        </button>
+      </div>
+
+      <!-- Tab 1: QR Code View -->
+      <div id="pairMethodQrView" class="qr-container" style="padding: 16px 20px 20px 20px;">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;">
+          Open WhatsApp on your phone, go to <b>Linked Devices</b> &gt; <b>Link a Device</b>, and point your camera at the QR code.
+        </p>
         <div id="qrCodeWrapper">
           <div style="padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;">
             <div class="spinner"></div>
             <div style="color: var(--text-dim); font-size: 14px;">Initializing connection...</div>
           </div>
         </div>
+        <div style="display: flex; gap: 8px; justify-content: center; margin-top: 14px; flex-wrap: wrap;">
+          <button onclick="fetchQrCode()" class="btn btn-secondary" style="font-size: 12px;">Refresh QR</button>
+          <button onclick="resetInstanceSession()" class="btn btn-secondary" style="font-size: 12px; color: var(--warning);" title="Wipe previous handshake and generate fresh keys">Reset Session</button>
+          <button onclick="closeModal('qrModal')" class="btn btn-secondary" style="font-size: 12px;">Close</button>
+        </div>
+      </div>
+
+      <!-- Tab 2: Pairing Code View -->
+      <div id="pairMethodCodeView" style="display: none; padding: 16px 20px 20px 20px; text-align: center;">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.4;">
+          Enter your WhatsApp phone number with country code (e.g. <code>233XXXXXXXXX</code> or <code>1555XXXXXXX</code>) to generate an 8-character pairing code.
+        </p>
+        <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+          <input type="tel" id="pairingPhoneInput" class="form-input" placeholder="e.g. 233501234567" style="font-size: 15px; letter-spacing: 1px; text-align: center;" />
+          <button onclick="requestPairingCode()" class="btn btn-primary" style="white-space: nowrap;">Get Code</button>
+        </div>
+        <div id="pairingCodeWrapper">
+          <div style="padding: 24px; color: var(--text-dim); font-size: 13px; background: var(--surface-light); border-radius: 8px;">
+            Enter your phone number above and click <b>Get Code</b>.
+          </div>
+        </div>
+        <div style="margin-top: 14px; text-align: left; font-size: 12px; color: var(--text-muted); background: var(--surface-light); padding: 12px; border-radius: 8px; line-height: 1.5;">
+          <b>On your phone:</b><br>
+          1. Open WhatsApp &gt; <b>Linked Devices</b> &gt; <b>Link a Device</b>.<br>
+          2. Tap <b>"Link with phone number instead"</b> at the bottom.<br>
+          3. Enter the 8-character pairing code.
+        </div>
         <div style="display: flex; gap: 8px; justify-content: center; margin-top: 14px;">
-          <button onclick="fetchQrCode()" class="btn btn-secondary">Refresh QR Code</button>
-          <button onclick="closeModal('qrModal')" class="btn btn-secondary">Close</button>
+          <button onclick="resetInstanceSession()" class="btn btn-secondary" style="font-size: 12px; color: var(--warning);">Reset Session</button>
+          <button onclick="closeModal('qrModal')" class="btn btn-secondary" style="font-size: 12px;">Close</button>
         </div>
       </div>
     </div>
@@ -1953,6 +1994,118 @@
             <button onclick="fetchQrCode()" class="btn btn-secondary">Retry</button>
           </div>
         `;
+      }
+    }
+
+    function switchPairMethod(method) {
+      const qrBtn = document.getElementById('btnMethodQr');
+      const codeBtn = document.getElementById('btnMethodCode');
+      const qrView = document.getElementById('pairMethodQrView');
+      const codeView = document.getElementById('pairMethodCodeView');
+
+      if (method === 'qr') {
+        qrBtn.className = 'btn btn-primary';
+        codeBtn.className = 'btn btn-secondary';
+        qrView.style.display = 'block';
+        codeView.style.display = 'none';
+        fetchQrCode();
+      } else {
+        qrBtn.className = 'btn btn-secondary';
+        codeBtn.className = 'btn btn-primary';
+        qrView.style.display = 'none';
+        codeView.style.display = 'block';
+      }
+    }
+
+    async function requestPairingCode() {
+      const phoneInput = document.getElementById('pairingPhoneInput');
+      const rawPhone = phoneInput.value.trim();
+      const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+
+      if (!cleanPhone || cleanPhone.length < 9) {
+        showToast('Please enter a valid phone number with country code (e.g. 233501234567)', true);
+        return;
+      }
+
+      const targetInstance = currentInstance || 'default';
+      const wrapper = document.getElementById('pairingCodeWrapper');
+      wrapper.innerHTML = `
+        <div style="padding: 28px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;">
+          <div class="spinner"></div>
+          <div style="color: var(--text-main); font-size: 14px; font-weight: 600;">Requesting pairing code for +${cleanPhone}...</div>
+          <div style="color: var(--text-muted); font-size: 12px;">Communicating with WhatsApp network, please wait...</div>
+        </div>
+      `;
+
+      try {
+        const res = await apiRequest(`/instances/${encodeURIComponent(targetInstance)}/connect?number=${encodeURIComponent(cleanPhone)}`);
+        const code = res.pairingCode || res.code;
+        if (code) {
+          const formatted = code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : code;
+          wrapper.innerHTML = `
+            <div style="padding: 20px; text-align: center; background: rgba(59, 130, 246, 0.08); border: 1px dashed var(--primary); border-radius: 12px;">
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;">Your 8-Character Pairing Code:</div>
+              <div style="font-size: 34px; font-weight: 800; letter-spacing: 6px; color: var(--primary); padding: 8px 0; font-family: monospace;">
+                ${escapeHtml(formatted)}
+              </div>
+              <div style="font-size: 12px; color: var(--text-dim); margin-top: 6px;">
+                Enter this code in WhatsApp on your phone.<br>
+                <span style="color: var(--success); font-weight: bold;">●</span> Waiting for entry... (Auto-detecting connection)
+              </div>
+            </div>
+          `;
+          startQrPolling(targetInstance);
+        } else if (res.state === 'open' || res.count !== undefined) {
+          wrapper.innerHTML = `
+            <div style="padding: 24px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 8px;">✅</div>
+              <div style="color: var(--success); font-weight: 700; font-size: 18px;">WhatsApp Connected!</div>
+              <button onclick="closeModal('qrModal')" class="btn btn-primary" style="margin-top: 12px;">Done</button>
+            </div>
+          `;
+          stopQrPolling();
+          await loadInstances();
+        } else {
+          wrapper.innerHTML = `
+            <div style="padding: 20px; color: var(--text-muted);">
+              <div>${escapeHtml(res.message || 'Unable to generate code. Please try again.')}</div>
+              <button onclick="requestPairingCode()" class="btn btn-secondary" style="margin-top: 10px;">Retry</button>
+            </div>
+          `;
+        }
+      } catch (err) {
+        wrapper.innerHTML = `
+          <div style="padding: 20px; color: var(--danger); text-align: center;">
+            <div style="font-weight: 600;">Request Failed</div>
+            <div style="font-size: 13px; color: var(--text-muted); margin: 6px 0 12px;">${escapeHtml(err.message)}</div>
+            <button onclick="requestPairingCode()" class="btn btn-secondary">Retry</button>
+          </div>
+        `;
+      }
+    }
+
+    async function resetInstanceSession() {
+      const targetInstance = currentInstance || 'default';
+      const wrapper = document.getElementById('qrCodeWrapper');
+      const pairingWrapper = document.getElementById('pairingCodeWrapper');
+
+      const spinnerHtml = `
+        <div style="padding: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;">
+          <div class="spinner"></div>
+          <div style="color: var(--warning); font-size: 14px; font-weight: 600;">Clearing session and regenerating fresh keys...</div>
+        </div>
+      `;
+      if (wrapper) wrapper.innerHTML = spinnerHtml;
+      if (pairingWrapper) pairingWrapper.innerHTML = spinnerHtml;
+
+      try {
+        await apiRequest(`/instances/${encodeURIComponent(targetInstance)}/reset`, { method: 'POST' });
+        showToast('Session reset. Fresh keys generated.');
+        await loadInstances();
+        await fetchQrCode();
+      } catch (err) {
+        showToast(`Reset failed: ${err.message}`, true);
+        fetchQrCode();
       }
     }
 

@@ -162,10 +162,11 @@ export class CustomAiRouter {
       }
     });
 
-    // 4. WhatsApp Connect / QR Code for an instance
+    // 4. WhatsApp Connect / QR Code / Pairing Code for an instance
     this.router.get('/instances/:instanceName/connect', auth, async (req: Request, res: Response) => {
       try {
         const { instanceName } = req.params;
+        const number = req.query.number ? String(req.query.number).replace(/[^0-9]/g, '') : null;
         let live = this.waMonitor.waInstances[instanceName];
 
         if (!live) {
@@ -181,9 +182,13 @@ export class CustomAiRouter {
                 instanceName,
                 integration: Integration.WHATSAPP_BAILEYS,
                 qrcode: true,
+                number: number || undefined,
               } as any);
 
-              if (created?.qrcode?.base64) {
+              if (number && (created?.qrcode?.pairingCode || created?.qrcode?.code)) {
+                return res.json(created.qrcode);
+              }
+              if (!number && created?.qrcode?.base64) {
                 return res.json(created.qrcode);
               }
             } catch (createErr: any) {
@@ -206,18 +211,22 @@ export class CustomAiRouter {
           });
         }
 
-        // If not already connecting, trigger connect
-        if (currentState !== 'connecting') {
-          try {
-            await live.connectToWhatsapp();
-          } catch (connErr: any) {
-            this.logger.warn(`connectToWhatsapp trigger warning: ${connErr?.message || connErr}`);
-          }
+        // Trigger connect (pass number if requested for pairing code)
+        try {
+          await live.connectToWhatsapp(number || undefined);
+        } catch (connErr: any) {
+          this.logger.warn(`connectToWhatsapp trigger warning: ${connErr?.message || connErr}`);
         }
 
-        // Wait up to 6 seconds for QR code generation
-        for (let i = 0; i < 12; i++) {
-          if (live.qrCode?.base64 || live.qrCode?.code) {
+        // Wait up to 8 seconds for QR code or Pairing Code generation
+        for (let i = 0; i < 16; i++) {
+          if (number && (live.qrCode?.pairingCode || live.qrCode?.code)) {
+            return res.json({
+              pairingCode: live.qrCode.pairingCode || live.qrCode.code,
+              code: live.qrCode.pairingCode || live.qrCode.code,
+            });
+          }
+          if (!number && (live.qrCode?.base64 || live.qrCode?.code)) {
             return res.json(live.qrCode);
           }
           if (live.connectionStatus?.state === 'open') {
@@ -230,14 +239,60 @@ export class CustomAiRouter {
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
 
-        if (live.qrCode?.base64 || live.qrCode?.code) {
+        if (live.qrCode?.base64 || live.qrCode?.pairingCode || live.qrCode?.code) {
           return res.json(live.qrCode);
         }
 
         return res.json({
           state: live.connectionStatus?.state || 'connecting',
-          message: 'QR code is generating. Please wait a moment and click Refresh.',
+          message: 'Code is generating. Please wait a moment and click Refresh.',
         });
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    });
+
+    // 4c. Reset Instance Session (Clear stuck credentials and generate fresh session)
+    this.router.post('/instances/:instanceName/reset', auth, async (req: Request, res: Response) => {
+      try {
+        const { instanceName } = req.params;
+        this.logger.info(`Resetting session for instance "${instanceName}"...`);
+
+        // 1. Delete session from DB
+        const dbInst = await this.prismaRepository.instance.findFirst({
+          where: { name: instanceName },
+        });
+        if (dbInst) {
+          await this.prismaRepository.session.deleteMany({
+            where: { sessionId: dbInst.id },
+          }).catch((e) => this.logger.warn(`Session cleanup warning: ${e.message}`));
+        }
+
+        // 2. Clear instance from waMonitor and event emitter
+        try {
+          if (this.waMonitor.waInstances[instanceName]) {
+            await this.waMonitor.waInstances[instanceName]?.logoutInstance().catch(() => {});
+            this.waMonitor.deleteInstance(instanceName);
+          }
+        } catch (cleanupErr: any) {
+          this.logger.warn(`Memory cleanup warning: ${cleanupErr.message}`);
+        }
+
+        // 3. Re-create instance fresh
+        if (this.instanceController) {
+          const created: any = await this.instanceController.createInstance({
+            instanceName,
+            integration: Integration.WHATSAPP_BAILEYS,
+            qrcode: true,
+          } as any);
+          return res.json({
+            success: true,
+            message: 'Instance session reset successfully',
+            qrcode: created?.qrcode,
+          });
+        }
+
+        return res.json({ success: true, message: 'Instance reset' });
       } catch (err: any) {
         return res.status(500).json({ error: err.message });
       }

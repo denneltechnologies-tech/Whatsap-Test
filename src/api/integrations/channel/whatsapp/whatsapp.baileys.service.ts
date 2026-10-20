@@ -92,6 +92,7 @@ import { useMultiFileAuthStateRedisDb } from '@utils/use-multi-file-auth-state-r
 import axios from 'axios';
 import makeWASocket, {
   AnyMessageContent,
+  Browsers,
   BufferedEventData,
   BufferJSON,
   CacheStore,
@@ -578,18 +579,19 @@ export class BaileysStartupService extends ChannelStartupService {
 
     const session = this.configService.get<ConfigSessionPhone>('CONFIG_SESSION_PHONE');
 
-    let browserOptions = {};
+    const browser: WABrowserDescription =
+      session.CLIENT && session.CLIENT !== 'Evolution API'
+        ? [session.CLIENT, session.NAME || 'Chrome', release()]
+        : Browsers.ubuntu('Chrome');
+
+    const browserOptions = { browser };
 
     if (number || this.phoneNumber) {
       this.phoneNumber = number;
-
       this.logger.info(`Phone number: ${number}`);
-    } else {
-      const browser: WABrowserDescription = [session.CLIENT, session.NAME, release()];
-      browserOptions = { browser };
-
-      this.logger.info(`Browser: ${browser}`);
     }
+
+    this.logger.info(`Browser: ${browser}`);
 
     const baileysVersion = await fetchLatestWaWebVersion({});
     const version = baileysVersion.version;

@@ -21,6 +21,10 @@ services:
       - dokploy-network
     env_file:
       - .env
+    environment:
+      - CONFIG_SESSION_PHONE_CLIENT=Ubuntu
+      - CONFIG_SESSION_PHONE_NAME=Chrome
+      - CONFIG_SESSION_PHONE_VERSION=22.04.4
     expose:
       - "8080"
     healthcheck:
