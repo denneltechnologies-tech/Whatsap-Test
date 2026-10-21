@@ -9,30 +9,25 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-dark: #f0f2f5;
-      --bg-card: #ffffff;
-      --bg-card-hover: #f5f6f6;
-      --bg-sidebar: #ffffff;
-      --border-color: #e9edef;
-      --border-focus: #00a884;
-      --text-main: #111b21;
-      --text-muted: #54656f;
-      --text-dim: #8696a0;
-      --primary: #008069;
-      --primary-hover: #006d59;
-      --success: #25d366;
+      --bg-dark: #0a0d14;
+      --bg-card: #121824;
+      --bg-card-hover: #1a2234;
+      --bg-sidebar: #0e131d;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-focus: #3b82f6;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
       --warning: #f59e0b;
       --danger: #ef4444;
-      --purple: #00a884;
+      --purple: #8b5cf6;
       --radius-sm: 6px;
       --radius-md: 10px;
-      --radius-lg: 14px;
-      --shadow-lg: 0 8px 24px rgba(11, 20, 26, 0.1);
-      
-      --wa-header: #008069;
-      --wa-chat-bg: #efeae2;
-      --wa-bubble-out: #d9fdd3;
-      --wa-bubble-in: #ffffff;
+      --radius-lg: 16px;
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
     }
 
     * {
@@ -63,13 +58,13 @@
     }
 
     .auth-card {
-      background: #ffffff;
+      background: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
       padding: 36px;
       width: 100%;
       max-width: 420px;
-      box-shadow: 0 12px 36px rgba(11, 20, 26, 0.18);
+      box-shadow: var(--shadow-lg);
     }
 
     .auth-card h2 {
@@ -217,13 +212,13 @@
 
     .nav-item:hover {
       color: var(--text-main);
-      background: #f5f6f6;
+      background: rgba(255, 255, 255, 0.05);
     }
 
     .nav-item.active {
-      color: #008069;
-      background: #e7f7ef;
-      border-left: 3px solid #008069;
+      color: white;
+      background: rgba(59, 130, 246, 0.16);
+      border: 1px solid rgba(59, 130, 246, 0.35);
       font-weight: 600;
     }
 
@@ -254,25 +249,264 @@
     .topbar {
       padding: 8px 20px;
       min-height: 48px;
-      background: #008069;
-      color: #ffffff;
-      border-bottom: 1px solid #006d59;
+      background: rgba(14, 19, 29, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
       display: flex;
       align-items: center;
       justify-content: space-between;
       position: sticky;
       top: 0;
       z-index: 50;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
     }
-    .topbar .btn-secondary {
-      background: #f0f2f5;
+
+    .instance-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-badge.open {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-badge.closed {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .status-badge.connecting {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .pulse {
+      animation: pulseAnim 2s infinite;
+    }
+
+    @keyframes pulseAnim {
+      0% { opacity: 1; }
+      50% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Content view area */
+    .view-content {
+      padding: 20px 24px;
+      flex: 1;
+      display: none;
+    }
+
+    .view-content.active {
+      display: block;
+    }
+
+    .view-header {
+      margin-bottom: 20px;
+    }
+
+    .view-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+    }
+
+    .view-header p {
+      color: var(--text-muted);
+      font-size: 12.5px;
+    }
+
+    /* Metrics Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 13px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .stat-label {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stat-value {
+      font-size: 21px;
+      font-weight: 700;
       color: var(--text-main);
-      border: 1px solid #d1d7db;
     }
-    .topbar .btn-secondary:hover {
-      background: #e9edef;
-      color: #111b21;
+
+    /* Common Card */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 18px 20px;
+      margin-bottom: 18px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* Forms */
+    .form-group {
+      margin-bottom: 13px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .form-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 7px 11px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 12.5px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .form-textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #1d4ed8, #1e40af);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
     }
 
     .btn-danger {
@@ -364,8 +598,7 @@
 
     th {
       padding: 12px 16px;
-      background: #f5f6f6;
-      color: var(--text-muted);
+      color: var(--text-dim);
       font-weight: 600;
       border-bottom: 1px solid var(--border-color);
       text-transform: uppercase;
@@ -380,7 +613,7 @@
     }
 
     tr:hover td {
-      background: #f9fafa;
+      background: rgba(255, 255, 255, 0.02);
     }
 
     /* Drag and Drop Zone */
@@ -509,8 +742,8 @@
       width: 100%;
       padding: 6px 10px 6px 27px !important;
       font-size: 12px !important;
-      background: #f0f2f5 !important;
-      border: 1px solid #e9edef !important;
+      background: rgba(0, 0, 0, 0.35) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
       border-radius: var(--radius-sm) !important;
       color: var(--text-main) !important;
     }
@@ -545,7 +778,7 @@
 
     .chat-item {
       padding: 8px 11px;
-      border-bottom: 1px solid #f0f2f5;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
       cursor: pointer;
       display: flex;
       gap: 9px;
@@ -555,12 +788,12 @@
     }
 
     .chat-item:hover {
-      background: #f5f6f6;
+      background: rgba(255, 255, 255, 0.04);
     }
 
     .chat-item.active {
-      background: #f0f2f5;
-      border-left: 3px solid #00a884;
+      background: linear-gradient(90deg, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0.04) 100%);
+      border-left: 3px solid var(--primary);
     }
 
     .chat-avatar {
@@ -603,7 +836,7 @@
     .chat-name {
       font-weight: 600;
       font-size: 12.5px;
-      color: #111b21;
+      color: #fff;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -686,13 +919,13 @@
       grid-template-columns: 1fr 1fr 1fr;
       gap: 4px;
       padding: 6px 8px;
-      background: #f0f2f5;
-      border-bottom: 1px solid #e9edef;
+      background: rgba(0, 0, 0, 0.15);
+      border-bottom: 1px solid var(--border-color);
       overflow-x: hidden;
     }
     .chat-filter-btn {
-      background: #ffffff;
-      border: 1px solid #d1d7db;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       color: var(--text-muted);
       font-size: 10px;
       padding: 4px 2px;
@@ -712,9 +945,9 @@
       color: #fff;
     }
     .chat-filter-btn.active {
-      background: #e7f7ef;
-      border-color: #008069;
-      color: #008069;
+      background: rgba(59, 130, 246, 0.2);
+      border-color: var(--primary);
+      color: #60a5fa;
       font-weight: 600;
     }
     .chat-filter-btn.takeover-filter.active {
@@ -737,7 +970,7 @@
       flex-direction: column !important;
       height: 100% !important;
       min-height: 0 !important;
-      background: #efeae2 !important;
+      background: #0b0f17;
       position: relative;
       min-width: 0;
       overflow: hidden !important;
@@ -746,11 +979,12 @@
     .chat-header {
       padding: 6px 14px;
       min-height: 44px;
-      border-bottom: 1px solid #d1d7db;
+      border-bottom: 1px solid var(--border-color);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: #f0f2f5;
+      background: rgba(14, 19, 29, 0.9);
+      backdrop-filter: blur(10px);
       z-index: 10;
       flex-shrink: 0 !important;
     }
@@ -779,7 +1013,7 @@
     .chat-header-title {
       font-weight: 600;
       font-size: 13px;
-      color: #111b21;
+      color: #fff;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -807,15 +1041,15 @@
     .chat-messages {
       flex: 1 1 0% !important;
       min-height: 0 !important;
-      padding: 8px 16px !important;
+      padding: 12px 18px !important;
       overflow-y: scroll !important;
       overflow-x: hidden !important;
       display: flex;
       flex-direction: column;
-      gap: 4px !important;
-      background: #efeae2 !important;
+      gap: 9px;
+      background: radial-gradient(circle at 50% 0%, rgba(20, 30, 48, 0.35) 0%, rgba(10, 14, 22, 0.95) 100%);
       scrollbar-width: thin;
-      scrollbar-color: rgba(0, 128, 105, 0.4) #f0f2f5;
+      scrollbar-color: rgba(59, 130, 246, 0.6) rgba(255, 255, 255, 0.04);
       scroll-behavior: smooth;
     }
 
@@ -863,27 +1097,28 @@
 
     .msg-group-date {
       align-self: center;
-      background: #ffffff !important;
-      border: 1px solid #e9edef !important;
-      color: #54656f !important;
-      font-size: 9.5px !important;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-dim);
+      font-size: 10px;
       font-weight: 600;
-      padding: 2px 9px !important;
-      border-radius: 8px !important;
-      margin: 4px 0 !important;
-      box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.1) !important;
+      padding: 2px 10px;
+      border-radius: 10px;
+      margin: 4px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .msg-bubble {
-      max-width: 65% !important;
-      padding: 5px 9px 4px 10px !important;
-      border-radius: 7.5px !important;
-      font-size: 12px !important;
-      line-height: 1.35 !important;
+      max-width: 76%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      line-height: 1.48;
       position: relative;
       word-break: break-word;
       white-space: pre-wrap;
-      box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
       animation: msgPopIn 0.15s ease-out;
     }
 
@@ -893,54 +1128,56 @@
     }
 
     .msg-customer {
-      align-self: flex-start !important;
-      background: #ffffff !important;
-      color: #111b21 !important;
-      border: none !important;
-      border-top-left-radius: 0px !important;
+      align-self: flex-start;
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-bottom-left-radius: 2px;
     }
 
     .msg-ai {
-      align-self: flex-end !important;
-      background: #d9fdd3 !important;
-      color: #111b21 !important;
-      border: none !important;
-      border-top-right-radius: 0px !important;
+      align-self: flex-end;
+      background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+      color: #ffffff;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-bottom-right-radius: 2px;
+      box-shadow: 0 3px 14px rgba(37, 99, 235, 0.25);
     }
 
     .msg-human {
-      align-self: flex-end !important;
-      background: #cbf5c5 !important;
-      color: #111b21 !important;
-      border: none !important;
-      border-top-right-radius: 0px !important;
+      align-self: flex-end;
+      background: linear-gradient(135deg, #065f46 0%, #059669 100%);
+      color: #ffffff;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-bottom-right-radius: 2px;
+      box-shadow: 0 3px 14px rgba(16, 185, 129, 0.2);
     }
 
     .msg-meta {
-      font-size: 9px !important;
-      margin-top: 1px !important;
+      font-size: 9.5px;
+      margin-top: 4px;
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 4px;
-      color: #667781 !important;
+      gap: 6px;
+      opacity: 0.8;
     }
 
     .badge-tag-sender {
-      font-size: 7.5px !important;
+      font-size: 8.5px;
       text-transform: uppercase;
       font-weight: 700;
-      letter-spacing: 0.03em;
-      padding: 0px 4px !important;
+      letter-spacing: 0.04em;
+      padding: 1px 5px;
       border-radius: 3px;
-      background: rgba(0, 128, 105, 0.1) !important;
-      color: #008069 !important;
+      background: rgba(0, 0, 0, 0.25);
     }
 
     /* Upgraded Conversational Reply Bar */
     .chat-input-container {
-      background: #f0f2f5 !important;
-      border-top: 1px solid #d1d7db !important;
+      background: rgba(14, 19, 29, 0.95);
+      border-top: 1px solid var(--border-color);
+      backdrop-filter: blur(12px);
       flex-shrink: 0;
       z-index: 10;
       display: flex;
@@ -1016,10 +1253,10 @@
       font-size: 12.5px;
       line-height: 1.4;
       font-family: inherit;
-      background: #ffffff;
-      border: 1px solid #d1d7db;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: var(--radius-sm);
-      color: #111b21;
+      color: #fff;
       resize: none;
       outline: none;
       transition: all 0.15s ease;
@@ -1037,7 +1274,7 @@
       font-size: 12px;
       font-weight: 600;
       border-radius: var(--radius-sm);
-      background: #008069;
+      background: linear-gradient(135deg, var(--primary), #2563eb);
       color: white;
       border: none;
       cursor: pointer;
@@ -1045,13 +1282,14 @@
       align-items: center;
       gap: 6px;
       transition: all 0.15s ease;
-      box-shadow: 0 2px 6px rgba(0, 128, 105, 0.25);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
       flex-shrink: 0;
     }
 
     .chat-send-btn:hover {
-      background: #006d59;
-      box-shadow: 0 3px 10px rgba(0, 128, 105, 0.35);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
     }
 
     .chat-send-btn:active {
@@ -1075,13 +1313,13 @@
     }
 
     .modal-window {
-      background: #ffffff;
+      background: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
-      padding: 24px;
+      padding: 28px;
       width: 100%;
       max-width: 500px;
-      box-shadow: 0 10px 30px rgba(11, 20, 26, 0.15);
+      box-shadow: var(--shadow-lg);
     }
 
     /* QR Code Display */
@@ -2319,7 +2557,6 @@
       const input = document.getElementById('newTenantInstanceName');
       if (input) {
         const slug = val.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-        input.value = slug;
         input.placeholder = slug ? slug : 'Auto-generated instance ID';
       }
     }
@@ -3314,13 +3551,13 @@
         }
 
         let cls = 'msg-customer';
-        let tagHtml = '';
+        let tag = '👤 Customer';
         if (m.senderType === 'ai') {
           cls = 'msg-ai';
-          tagHtml = '<span class="badge-tag-sender">✦ AI</span>';
+          tag = '✦ AI Bot';
         } else if (m.senderType === 'human') {
           cls = 'msg-human';
-          tagHtml = '<span class="badge-tag-sender">🛡 Agent</span>';
+          tag = '🛡 Agent';
         }
 
         const time = new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -3328,10 +3565,10 @@
 
         htmlChunks.push(`
           <div class="msg-bubble ${cls}">
-            <div style="font-size: 12px; line-height: 1.35; color: #111b21;">${contentFormatted}</div>
+            <div>${contentFormatted}</div>
             <div class="msg-meta">
-              ${tagHtml}
-              <span style="font-size: 9px; color: #667781;">${time}</span>
+              <span class="badge-tag-sender">${tag}</span>
+              <span>${time}</span>
             </div>
           </div>
         `);
@@ -3433,23 +3670,10 @@
       }
     }
 
-    let qrCountdownTimer = 18;
-
     function startQrPolling(instanceName) {
       stopQrPolling();
-      qrCountdownTimer = 18;
-
       qrPollTimer = setInterval(async () => {
-        qrCountdownTimer = Math.max(0, qrCountdownTimer - 2);
-
-        // Update countdown label in UI
-        const cdEl = document.getElementById('qrLiveCountdown');
-        if (cdEl) {
-          cdEl.textContent = `Auto-refreshes in ${qrCountdownTimer}s`;
-        }
-
         try {
-          // 1. Check if instance is connected
           const stats = await apiRequest(`/status?instanceName=${encodeURIComponent(instanceName)}`);
           const targetInst = stats?.waInstances?.find(i => i.instanceName === instanceName);
           if (targetInst && targetInst.state === 'open') {
@@ -3467,29 +3691,11 @@
             }
             await loadInstances();
             loadDashboardStats();
-            return;
-          }
-
-          // 2. Refresh QR code smoothly every 18 seconds before it expires
-          if (qrCountdownTimer <= 0) {
-            qrCountdownTimer = 18;
-            const res = await apiRequest(`/instances/${encodeURIComponent(instanceName)}/connect`);
-            if (res.base64) {
-              const qrImg = document.getElementById('activeQrImg');
-              if (qrImg) {
-                qrImg.src = res.base64;
-              }
-            } else if (res.state === 'open') {
-              stopQrPolling();
-              await loadInstances();
-              closeModal('qrModal');
-              showToast('WhatsApp connected successfully!');
-            }
           }
         } catch (pollErr) {
           console.warn('QR poll status check error:', pollErr);
         }
-      }, 2000);
+      }, 3000);
     }
 
     async function openQrModal() {
@@ -3504,10 +3710,10 @@
       const targetInstance = currentInstance || 'default';
       const wrapper = document.getElementById('qrCodeWrapper');
       wrapper.innerHTML = `
-        <div style="padding: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;">
+        <div style="padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;">
           <div class="spinner"></div>
-          <div style="color: var(--text-main); font-size: 14px; font-weight: 600;">Generating live QR code for "${escapeHtml(targetInstance)}"...</div>
-          <div style="color: var(--text-muted); font-size: 12px;">Connecting to WhatsApp network...</div>
+          <div style="color: var(--text-main); font-size: 14px; font-weight: 600;">Generating QR Code for "${escapeHtml(targetInstance)}"...</div>
+          <div style="color: var(--text-muted); font-size: 12px;">Connecting to WhatsApp network, please wait a few seconds...</div>
         </div>
       `;
 
@@ -3515,19 +3721,11 @@
         const res = await apiRequest(`/instances/${encodeURIComponent(targetInstance)}/connect`);
         if (res.base64) {
           wrapper.innerHTML = `
-            <div style="background: #ffffff; padding: 14px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.1); border: 1px solid var(--border-color); margin: 6px 0;">
-              <img id="activeQrImg" src="${res.base64}" class="qr-image" style="width: 240px; height: 240px; display: block; margin: 0 auto;" alt="WhatsApp QR Code">
+            <div style="background: #ffffff; padding: 16px; border-radius: 12px; display: inline-block; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin: 8px 0;">
+              <img src="${res.base64}" class="qr-image" style="width: 256px; height: 256px; display: block; margin: 0 auto;" alt="WhatsApp QR Code">
             </div>
-            <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11.5px; color: var(--text-muted); margin-top: 8px;">
-              <span style="color: var(--success); font-weight: bold; animation: pulseAnim 2s infinite;">●</span>
-              <span>Scanning live...</span>
-              <span id="qrLiveCountdown" style="color: var(--text-dim); background: #f0f2f5; padding: 2px 8px; border-radius: 10px; font-size: 10.5px;">Auto-refreshes in 18s</span>
-            </div>
-            <div style="margin-top: 14px; padding: 10px 14px; background: #e7f7ef; border-radius: 8px; border: 1px solid rgba(0, 168, 132, 0.25); text-align: left;">
-              <div style="font-size: 12px; font-weight: 600; color: #008069; margin-bottom: 2px;">Camera having trouble scanning?</div>
-              <div style="font-size: 11px; color: #54656f;">
-                Click <a href="javascript:void(0)" onclick="switchPairMethod('code')" style="color: #008069; font-weight: 700; text-decoration: underline;">Phone Pairing Code</a> at the top to connect using an 8-character code without camera!
-              </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">
+              <span style="color: var(--success); font-weight: bold;">●</span> Listening for phone scan... (Auto-detecting connection)
             </div>
           `;
           startQrPolling(targetInstance);
@@ -3535,7 +3733,7 @@
           wrapper.innerHTML = `
             <div style="padding: 20px; text-align: center;">
               <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Pairing Code:</div>
-              <div style="font-size: 28px; font-weight: 800; letter-spacing: 4px; color: var(--primary); background: var(--bg-card); padding: 12px 20px; border-radius: 8px; display: inline-block; border: 1px dashed var(--primary);">
+              <div style="font-size: 28px; font-weight: 800; letter-spacing: 4px; color: var(--primary); background: var(--surface-light); padding: 12px 20px; border-radius: 8px; display: inline-block;">
                 ${escapeHtml(res.code)}
               </div>
               <div style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">Enter this code on your phone in WhatsApp &gt; Linked Devices.</div>
