@@ -140,11 +140,15 @@ export class TenantController {
     }
 
     if (userContext.userId === 'superadmin_master') {
-      return {
+      const adminProfile = {
         id: 'superadmin_master',
-        email: userContext.email || 'admin@evolution.local',
+        email: userContext.email || 'admin@denneltech.com',
         role: 'superadmin',
-        businessName: 'Master Super Admin',
+        businessName: 'Dennel Tech',
+      };
+      return {
+        user: adminProfile,
+        ...adminProfile,
       };
     }
 
@@ -174,9 +178,14 @@ export class TenantController {
       instanceName = inst?.name;
     }
 
-    return {
+    const profile = {
       ...user,
       instanceName,
+    };
+
+    return {
+      user: profile,
+      ...profile,
     };
   }
 
