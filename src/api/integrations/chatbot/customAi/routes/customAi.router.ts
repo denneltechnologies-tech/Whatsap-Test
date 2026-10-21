@@ -454,6 +454,55 @@ export class CustomAiRouter {
       }
     });
 
+    // 4d. Disconnect / Logout WhatsApp Session (Allows user to disconnect current number & connect a different one)
+    this.router.post('/instances/:instanceName/logout', auth, async (req: Request, res: Response) => {
+      try {
+        const { instanceName } = req.params;
+        this.logger.info(`Disconnecting/logging out WhatsApp for instance "${instanceName}"...`);
+
+        // 1. If active in waMonitor, call logoutInstance() to cleanly disconnect socket and wipe credentials
+        try {
+          const live = this.waMonitor.waInstances[instanceName];
+          if (live) {
+            await live.logoutInstance().catch((err: any) => {
+              this.logger.warn(`logoutInstance error for ${instanceName}: ${err?.message || err}`);
+            });
+            try {
+              live.client?.ws?.close();
+            } catch (_) {}
+            live.qrCode = null;
+          }
+        } catch (e: any) {
+          this.logger.warn(`waMonitor logout error: ${e.message}`);
+        }
+
+        // 2. Also try controller logout if available
+        if (this.instanceController) {
+          try {
+            await this.instanceController.logout({ instanceName } as any).catch(() => {});
+          } catch (_) {}
+        }
+
+        // 3. Update DB instance state to 'close' and clear the connected phone number & profile
+        await this.prismaRepository.instance.updateMany({
+          where: { name: instanceName },
+          data: {
+            connectionStatus: 'close',
+            number: null,
+            profileName: null,
+            profilePicUrl: null,
+          },
+        }).catch(() => {});
+
+        return res.json({
+          success: true,
+          message: 'WhatsApp number disconnected successfully. You can now connect a new number.',
+        });
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    });
+
     // 4b. Explicitly Create Instance
     this.router.post('/instances', auth, async (req: Request, res: Response) => {
       try {

@@ -1358,9 +1358,289 @@
       transform: translateY(0);
       opacity: 1;
     }
+
+    /* Mobile & Responsive Rules for All Screen Sizes */
+    .mobile-only {
+      display: none !important;
+    }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 55;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    /* Medium screens (Tablets landscape & small laptops) */
+    @media (max-width: 992px) {
+      .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+      }
+      .inbox-container {
+        grid-template-columns: 260px 1fr;
+      }
+      .view-content {
+        padding: 16px 18px;
+      }
+    }
+
+    /* Tablet portrait & Mobile (< 768px) */
+    @media (max-width: 768px) {
+      .mobile-only {
+        display: inline-flex !important;
+      }
+
+      /* Sidebar off-canvas drawer */
+      #sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 250px !important;
+        height: 100vh;
+        z-index: 60;
+        transform: translateX(-100%);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.85);
+      }
+
+      body.sidebar-mobile-open #sidebar {
+        transform: translateX(0);
+      }
+
+      body.sidebar-mobile-open .sidebar-backdrop {
+        display: block;
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      body {
+        overflow-x: hidden;
+      }
+
+      #main {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .topbar {
+        padding: 8px 12px;
+        min-height: 48px;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .instance-selector {
+        gap: 6px;
+      }
+
+      #instanceSelect {
+        width: 120px !important;
+        font-size: 11px;
+      }
+
+      .top-actions {
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      #linkEvolutionManager {
+        display: none !important;
+      }
+
+      #currentUserPill {
+        padding: 3px 6px;
+        font-size: 10.5px;
+      }
+
+      #userEmailDisplay {
+        display: none;
+      }
+
+      .btn-disconnect-text,
+      #btnTopConnectWaText {
+        font-size: 11px;
+      }
+
+      .view-content {
+        padding: 12px 12px;
+      }
+
+      .view-header {
+        margin-bottom: 14px;
+      }
+
+      .view-header h2 {
+        font-size: 16px;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .stat-card {
+        padding: 10px 12px;
+      }
+
+      .stat-value {
+        font-size: 18px;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .modal-backdrop {
+        padding: 10px;
+        align-items: flex-end;
+      }
+
+      .modal-window {
+        padding: 20px 16px;
+        max-width: 100% !important;
+        width: 100% !important;
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+        max-height: 92vh;
+        overflow-y: auto;
+      }
+
+      .auth-card {
+        padding: 24px 18px;
+        margin: 12px;
+        max-width: calc(100vw - 24px);
+      }
+
+      .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .table-responsive table {
+        min-width: 580px;
+      }
+
+      /* Conversation Inbox: Full-screen sliding view */
+      #tab-inbox.active {
+        padding: 4px 6px 6px 6px !important;
+        height: calc(100vh - 50px) !important;
+        max-height: calc(100vh - 50px) !important;
+      }
+
+      .inbox-container {
+        display: flex !important;
+        flex-direction: row !important;
+        position: relative !important;
+        width: 100% !important;
+        height: 100% !important;
+        overflow: hidden !important;
+      }
+
+      #chatListPane {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
+        display: flex !important;
+        transition: transform 0.2s ease;
+      }
+
+      #chatPane {
+        display: none !important;
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
+      }
+
+      body.mobile-chat-active #chatListPane {
+        display: none !important;
+      }
+
+      body.mobile-chat-active #chatPane {
+        display: flex !important;
+      }
+
+      body.mobile-chat-active #btnChatMobileBack {
+        display: inline-flex !important;
+      }
+
+      .chat-messages {
+        padding: 8px 10px !important;
+      }
+
+      .msg-bubble {
+        max-width: 88%;
+        font-size: 12px;
+        padding: 7px 10px;
+      }
+
+      .chat-input-bar {
+        padding: 6px 8px;
+        gap: 6px;
+      }
+
+      .chat-textarea {
+        font-size: 12px;
+        padding: 6px 9px;
+      }
+
+      .chat-send-btn {
+        padding: 0 10px;
+        height: 36px;
+      }
+    }
+
+    /* Small Mobile Phones (< 480px) */
+    @media (max-width: 480px) {
+      .topbar {
+        padding: 6px 8px;
+      }
+
+      .status-badge {
+        font-size: 10px;
+        padding: 2px 6px;
+      }
+
+      #topbarInstanceSelectorWrapper label {
+        display: none;
+      }
+
+      #instanceSelect {
+        width: 105px !important;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .btn {
+        padding: 5px 8px;
+        font-size: 11px;
+      }
+
+      .chat-filter-bar {
+        padding: 4px;
+      }
+
+      .chat-filter-btn {
+        font-size: 9.5px;
+        padding: 3px 1px;
+      }
+    }
   </style>
 </head>
 <body>
+
+  <!-- Mobile Sidebar Backdrop Overlay -->
+  <div id="sidebarBackdrop" onclick="closeMobileSidebar()" class="sidebar-backdrop"></div>
 
   <!-- Auth Modal Overlay -->
   <div id="authOverlay">
@@ -1483,11 +1763,14 @@
           <span id="userEmailDisplay" style="color: var(--text-main); font-weight: 500;">Dennel Admin</span>
         </div>
         <button onclick="logout()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11.5px; display: flex; align-items: center; gap: 5px; border-color: rgba(239, 68, 68, 0.35); color: #fca5a5; background: rgba(239, 68, 68, 0.08); cursor: pointer;" title="Sign out to switch to client tenant">
-          <span>🚪</span> Sign Out
+          <span>🚪</span> <span class="btn-signout-text">Sign Out</span>
         </button>
-        <button onclick="openQrModal()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11.5px;">
+        <button id="btnTopDisconnectWa" onclick="confirmDisconnectWhatsApp()" class="btn btn-danger" style="display: none; padding: 4px 10px; font-size: 11.5px; align-items: center; gap: 5px;" title="Disconnect current WhatsApp number & link a different one">
+          <span>🔌</span> <span class="btn-disconnect-text">Disconnect</span>
+        </button>
+        <button id="btnTopConnectWa" onclick="openQrModal()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px;">
           <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-          Connect WhatsApp
+          <span id="btnTopConnectWaText">Connect WhatsApp</span>
         </button>
         <a id="linkEvolutionManager" href="/manager" target="_blank" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11.5px;" title="Official Evolution Manager">
           Manager
@@ -1833,6 +2116,9 @@
         <div class="chat-pane" id="chatPane">
           <div class="chat-header">
             <div class="chat-header-user">
+              <button id="btnChatMobileBack" onclick="closeMobileChat()" class="btn btn-secondary mobile-only" style="padding: 4px 8px; font-size: 11.5px; margin-right: 6px; display: none; align-items: center; gap: 4px;" title="Back to conversations list">
+                <span>←</span> Back
+              </button>
               <div id="activeChatAvatar" class="chat-header-avatar">?</div>
               <div>
                 <div id="activeChatName" class="chat-header-title">Select a conversation</div>
@@ -1956,6 +2242,23 @@
       <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);">
         <h3 class="card-title">Link WhatsApp Account</h3>
         <button onclick="closeModal('qrModal')" class="btn btn-secondary" style="padding: 4px 8px;">✕</button>
+      </div>
+
+      <!-- Connected Notice (Allows instant disconnect & reconnect) -->
+      <div id="qrModalConnectedNotice" style="display: none; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); padding: 12px 14px; margin: 12px 20px 0 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+          <div>
+            <div style="font-weight: 700; color: #86efac; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+              <span class="status-dot" style="background: #10b981;"></span> WhatsApp Currently Connected
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+              Want to disconnect or switch to a different WhatsApp phone number?
+            </div>
+          </div>
+          <button onclick="confirmDisconnectWhatsApp()" class="btn btn-danger" style="padding: 5px 12px; font-size: 11.5px; white-space: nowrap; flex-shrink: 0;">
+            🔌 Disconnect Current Line
+          </button>
+        </div>
       </div>
 
       <!-- Pairing Method Switcher -->
@@ -2409,6 +2712,13 @@
 
     // Tab Navigation
     function switchTab(tabId) {
+      if (window.innerWidth <= 768) {
+        closeMobileSidebar();
+      }
+      if (tabId !== 'inbox') {
+        closeMobileChat();
+      }
+
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.view-content').forEach(el => el.classList.remove('active'));
 
@@ -2524,6 +2834,15 @@
               <button onclick="switchTenantWorkspace('${escapeHtml(t.instanceName)}')" class="btn btn-primary" style="padding: 4px 10px; font-size: 11.5px; margin-right: 4px;" title="Switch dashboard context to this business">
                 Access Workspace ➔
               </button>
+              ${isOnline ? `
+                <button onclick="confirmDisconnectWhatsApp('${escapeHtml(t.instanceName)}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11.5px; margin-right: 4px; color: #fca5a5; border-color: rgba(239, 68, 68, 0.35);" title="Disconnect WhatsApp & Link a Different Number">
+                  🔌 Disconnect
+                </button>
+              ` : `
+                <button onclick="connectTenantWhatsApp('${escapeHtml(t.instanceName)}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11.5px; margin-right: 4px; color: #86efac; border-color: rgba(16, 185, 129, 0.35);" title="Connect WhatsApp Number">
+                  📱 Connect
+                </button>
+              `}
               <button onclick="openResetPasswordModal('${t.id}', '${escapeHtml(t.email)}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11.5px; margin-right: 4px;" title="Reset Password">
                 🔑
               </button>
@@ -2696,18 +3015,31 @@
     function updateConnectionBadge(inst) {
       const badge = document.getElementById('connectionBadge');
       const text = document.getElementById('connectionText');
-      badge.className = 'status-badge';
+      const btnDisconnect = document.getElementById('btnTopDisconnectWa');
+      const btnConnectText = document.getElementById('btnTopConnectWaText');
+      const qrConnectedNotice = document.getElementById('qrModalConnectedNotice');
+
+      if (badge) badge.className = 'status-badge';
 
       const state = inst?.state || inst?.connectionStatus || 'closed';
       if (state === 'open') {
-        badge.classList.add('open');
-        text.textContent = 'WhatsApp Connected';
+        if (badge) badge.classList.add('open');
+        if (text) text.textContent = 'WhatsApp Connected';
+        if (btnDisconnect) btnDisconnect.style.display = 'inline-flex';
+        if (btnConnectText) btnConnectText.textContent = 'Change / Reconnect';
+        if (qrConnectedNotice) qrConnectedNotice.style.display = 'block';
       } else if (state === 'connecting') {
-        badge.classList.add('connecting', 'pulse');
-        text.textContent = 'Connecting...';
+        if (badge) badge.classList.add('connecting', 'pulse');
+        if (text) text.textContent = 'Connecting...';
+        if (btnDisconnect) btnDisconnect.style.display = 'none';
+        if (btnConnectText) btnConnectText.textContent = 'Connect WhatsApp';
+        if (qrConnectedNotice) qrConnectedNotice.style.display = 'none';
       } else {
-        badge.classList.add('closed');
-        text.textContent = 'Disconnected';
+        if (badge) badge.classList.add('closed');
+        if (text) text.textContent = 'Disconnected';
+        if (btnDisconnect) btnDisconnect.style.display = 'none';
+        if (btnConnectText) btnConnectText.textContent = 'Connect WhatsApp';
+        if (qrConnectedNotice) qrConnectedNotice.style.display = 'none';
       }
     }
 
@@ -3343,13 +3675,25 @@
     }
 
     function toggleSidebar() {
-      document.body.classList.toggle('sidebar-collapsed');
-      const isCollapsed = document.body.classList.contains('sidebar-collapsed');
-      localStorage.setItem('evo_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+      if (window.innerWidth <= 768) {
+        document.body.classList.toggle('sidebar-mobile-open');
+      } else {
+        document.body.classList.toggle('sidebar-collapsed');
+        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+        localStorage.setItem('evo_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+      }
     }
 
-    // Restore sidebar collapse state
-    if (localStorage.getItem('evo_sidebar_collapsed') === 'true') {
+    function closeMobileSidebar() {
+      document.body.classList.remove('sidebar-mobile-open');
+    }
+
+    function closeMobileChat() {
+      document.body.classList.remove('mobile-chat-active');
+    }
+
+    // Restore sidebar collapse state for desktop
+    if (window.innerWidth > 768 && localStorage.getItem('evo_sidebar_collapsed') === 'true') {
       document.body.classList.add('sidebar-collapsed');
     }
 
@@ -3430,6 +3774,7 @@
 
     async function selectConversation(remoteJid, displayName) {
       activeConversationJid = remoteJid;
+      document.body.classList.add('mobile-chat-active');
       document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
       const activeEl = document.querySelector(`.chat-item[onclick*="${remoteJid}"]`);
       if (activeEl) activeEl.classList.add('active');
@@ -3742,11 +4087,16 @@
           startQrPolling(targetInstance);
         } else if (res.state === 'open' || res.count !== undefined) {
           wrapper.innerHTML = `
-            <div style="padding: 30px; text-align: center;">
+            <div style="padding: 24px; text-align: center;">
               <div style="font-size: 44px; margin-bottom: 8px;">✅</div>
               <div style="color: var(--success); font-weight: 700; font-size: 18px;">WhatsApp Connected!</div>
-              <div style="color: var(--text-muted); font-size: 13px; margin: 8px 0 16px;">Instance <b>${escapeHtml(targetInstance)}</b> is online and ready.</div>
-              <button onclick="closeModal('qrModal')" class="btn btn-primary">Done</button>
+              <div style="color: var(--text-muted); font-size: 13px; margin: 8px 0 16px;">Instance <b>${escapeHtml(targetInstance)}</b> is online and AI is active.</div>
+              <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="confirmDisconnectWhatsApp('${escapeHtml(targetInstance)}')" class="btn btn-danger" style="padding: 6px 14px; font-size: 12px;">
+                  🔌 Disconnect & Link Different Number
+                </button>
+                <button onclick="closeModal('qrModal')" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px;">Done</button>
+              </div>
             </div>
           `;
           stopQrPolling();
@@ -3768,6 +4118,54 @@
           </div>
         `;
       }
+    }
+
+    async function confirmDisconnectWhatsApp(targetInst) {
+      const instName = targetInst || currentInstance || 'default';
+      const confirmed = confirm(
+        `Are you sure you want to disconnect WhatsApp for "${instName}"?\n\nThis will cleanly disconnect the active WhatsApp phone session so you can link a different phone number whenever you want.`
+      );
+      if (!confirmed) return;
+
+      try {
+        showToast(`Disconnecting WhatsApp for ${instName}...`);
+        const res = await apiRequest(`/instances/${encodeURIComponent(instName)}/logout`, {
+          method: 'POST',
+        });
+
+        showToast(res?.message || 'WhatsApp disconnected successfully!', false);
+
+        // Update badge and instance list
+        await loadInstances();
+        const found = instancesList.find(i => i.name === instName);
+        updateConnectionBadge(found || { state: 'closed' });
+
+        if (document.getElementById('tab-tenants')?.classList.contains('active')) {
+          loadTenants();
+        }
+
+        // Prompt if user wants to connect a new number right now
+        const wantReconnect = confirm(
+          `WhatsApp for "${instName}" is now disconnected!\n\nWould you like to connect a new or different WhatsApp number right now?`
+        );
+        if (wantReconnect) {
+          currentInstance = instName;
+          const select = document.getElementById('instanceSelect');
+          if (select) select.value = instName;
+          openQrModal();
+        } else {
+          closeModal('qrModal');
+        }
+      } catch (err) {
+        showToast(`Failed to disconnect: ${err.message}`, true);
+      }
+    }
+
+    function connectTenantWhatsApp(instanceName) {
+      currentInstance = instanceName;
+      const select = document.getElementById('instanceSelect');
+      if (select) select.value = instanceName;
+      openQrModal();
     }
 
     function switchPairMethod(method) {
