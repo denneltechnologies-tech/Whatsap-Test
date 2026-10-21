@@ -214,17 +214,44 @@ export class TenantController {
               profilePicUrl: true,
             },
           });
+        }
 
+        if (!instance && t.businessName) {
+          instance = await this.prismaRepository.instance.findFirst({
+            where: {
+              OR: [
+                { name: t.businessName },
+                { name: t.businessName.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') },
+              ],
+            },
+            select: {
+              id: true,
+              name: true,
+              connectionStatus: true,
+              number: true,
+              profileName: true,
+              profilePicUrl: true,
+            },
+          });
+          if (instance) {
+            await (this.prismaRepository as any).tenantUser.update({
+              where: { id: t.id },
+              data: { instanceId: instance.id },
+            }).catch(() => {});
+          }
+        }
+
+        if (instance?.id) {
           const convCount = await (this.prismaRepository as any).aiConversationState.count({
-            where: { instanceId: t.instanceId },
+            where: { instanceId: instance.id },
           });
 
           const aiReplyCount = await (this.prismaRepository as any).aiMessageLog.count({
-            where: { instanceId: t.instanceId, senderType: 'ai' },
+            where: { instanceId: instance.id, senderType: 'ai' },
           });
 
           const docCount = await (this.prismaRepository as any).knowledgeDocument.count({
-            where: { instanceId: t.instanceId },
+            where: { instanceId: instance.id },
           });
 
           stats = {
@@ -240,7 +267,7 @@ export class TenantController {
           email: t.email,
           role: t.role,
           status: t.status,
-          instanceId: t.instanceId,
+          instanceId: instance?.id || t.instanceId,
           instanceName: instance?.name,
           connectionStatus: instance?.connectionStatus || 'closed',
           whatsappNumber: instance?.number,
@@ -282,7 +309,7 @@ export class TenantController {
       throw new BadRequestException(`An account with email '${email}' already exists`);
     }
 
-    // 1. Generate or validate instance name
+    // 1. Generate or validate instance name (strictly sanitize to lowercase alphanumeric + underscore)
     let cleanInstanceName = data.instanceName?.trim();
     if (!cleanInstanceName) {
       const slug = businessName
@@ -293,6 +320,12 @@ export class TenantController {
         .substring(0, 16);
       const randSuffix = Math.random().toString(36).substring(2, 6);
       cleanInstanceName = `${slug || 'biz'}_${randSuffix}`;
+    } else {
+      cleanInstanceName = cleanInstanceName
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
     }
 
     // Check instance name uniqueness

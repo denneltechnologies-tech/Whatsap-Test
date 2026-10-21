@@ -304,23 +304,7 @@ export class CustomAiRouter {
         });
 
         // Ensure in-memory live instance and DB record exist and are synchronized
-        if (!dbInstance || !live || live.instanceId !== dbInstance.id) {
-          this.logger.info(`Instance "${instanceName}" missing or desynced between DB and memory. Recreating...`);
-          if (live) {
-            try {
-              await live?.client?.logout('Recreate instance');
-              live?.client?.ws?.close();
-              live?.client?.end(undefined);
-            } catch {}
-            delete this.waMonitor.waInstances[instanceName];
-            this.waMonitor.clearDelInstanceTime(instanceName);
-          }
-          if (dbInstance) {
-            await this.prismaRepository.instance.delete({
-              where: { id: dbInstance.id },
-            }).catch(() => {});
-          }
-
+        if (!dbInstance) {
           if (this.instanceController) {
             this.logger.info(`Creating fresh instance "${instanceName}"...`);
             try {
@@ -342,6 +326,21 @@ export class CustomAiRouter {
               this.logger.error(`Error creating instance ${instanceName}: ${createErr?.message || createErr}`);
             }
           }
+        } else if (!live) {
+          this.logger.info(`Instance "${instanceName}" found in DB but not active in memory. Loading...`);
+          if (this.instanceController) {
+            try {
+              await this.instanceController.createInstance({
+                instanceName: dbInstance.name,
+                integration: dbInstance.integration || Integration.WHATSAPP_BAILEYS,
+                qrcode: true,
+                number: number || undefined,
+              } as any);
+              live = this.waMonitor.waInstances[instanceName];
+            } catch (loadErr: any) {
+              this.logger.warn(`Could not load instance into memory: ${loadErr?.message || loadErr}`);
+            }
+          }
         }
 
         live = this.waMonitor.waInstances[instanceName];
@@ -358,19 +357,26 @@ export class CustomAiRouter {
           });
         }
 
-        // Trigger connect (pass number if requested for pairing code)
-        try {
-          await live.connectToWhatsapp(number || undefined);
-        } catch (connErr: any) {
-          this.logger.warn(`connectToWhatsapp trigger warning: ${connErr?.message || connErr}`);
+        // Only trigger connectToWhatsapp if instance is closed or if pairing number was explicitly requested
+        const needsConnect = currentState === 'close' || 
+          (number && !live.qrCode?.pairingCode) || 
+          (!number && !live.qrCode?.base64 && currentState !== 'connecting');
+
+        if (needsConnect) {
+          try {
+            await live.connectToWhatsapp(number || undefined);
+          } catch (connErr: any) {
+            this.logger.warn(`connectToWhatsapp trigger warning: ${connErr?.message || connErr}`);
+          }
         }
 
-        // Wait up to 8 seconds for QR code or Pairing Code generation
-        for (let i = 0; i < 16; i++) {
+        // Wait up to 6 seconds for QR code or Pairing Code generation
+        for (let i = 0; i < 12; i++) {
           if (number && (live.qrCode?.pairingCode || live.qrCode?.code)) {
             return res.json({
               pairingCode: live.qrCode.pairingCode || live.qrCode.code,
               code: live.qrCode.pairingCode || live.qrCode.code,
+              count: live.qrCode.count,
             });
           }
           if (!number && (live.qrCode?.base64 || live.qrCode?.code)) {
