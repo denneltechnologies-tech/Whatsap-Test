@@ -364,6 +364,16 @@ export class CustomAiRouter {
       }
     });
 
+    this.router.post('/settings/:instanceName/test-notification', auth, async (req: Request, res: Response) => {
+      try {
+        const { instanceName } = req.params;
+        const response = await this.settingsController.testNotification(instanceName, req.body);
+        return res.json(response);
+      } catch (err: any) {
+        return res.status(err.status || 500).json({ error: err.message });
+      }
+    });
+
     // 6. Knowledge Base Endpoints
     this.router.get('/knowledge/:instanceName', auth, async (req: Request, res: Response) => {
       try {

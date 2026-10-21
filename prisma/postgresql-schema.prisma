@@ -778,6 +778,8 @@ model AiAssistantConfig {
   systemPrompt          String?   @db.Text
   fallbackResponse      String?   @db.Text
   humanTakeoverKeywords String?   @default("human, agent, attendant, atendente, humano, support") @db.VarChar(500)
+  adminNotificationPhone String?   @db.VarChar(50)
+  notifyOnTakeover      Boolean   @default(true) @db.Boolean
   provider              String    @default("openai") @db.VarChar(50)
   model                 String    @default("gpt-4o-mini") @db.VarChar(100)
   apiUrl                String?   @db.VarChar(500)

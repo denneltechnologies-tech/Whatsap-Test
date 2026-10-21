@@ -778,6 +778,89 @@
       white-space: nowrap;
     }
 
+    .badge-takeover-alert {
+      background: #ef4444;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 10px;
+      margin-left: auto;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+      animation: pulseTakeover 2s infinite;
+    }
+    @keyframes pulseTakeover {
+      0% { transform: scale(1); box-shadow: 0 0 4px rgba(239,68,68,0.5); }
+      50% { transform: scale(1.1); box-shadow: 0 0 12px rgba(239,68,68,0.9); }
+      100% { transform: scale(1); box-shadow: 0 0 4px rgba(239,68,68,0.5); }
+    }
+
+    .takeover-banner {
+      background: linear-gradient(90deg, rgba(239,68,68,0.18), rgba(245,158,11,0.18));
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12.5px;
+      color: #fca5a5;
+      font-weight: 600;
+      animation: alertPulse 3s infinite;
+    }
+    @keyframes alertPulse {
+      0% { border-color: rgba(239, 68, 68, 0.4); }
+      50% { border-color: rgba(239, 68, 68, 0.9); box-shadow: 0 0 12px rgba(239, 68, 68, 0.3); }
+      100% { border-color: rgba(239, 68, 68, 0.4); }
+    }
+
+    .chat-filter-bar {
+      display: flex;
+      gap: 6px;
+      padding: 8px 12px 4px 12px;
+      overflow-x: auto;
+    }
+    .chat-filter-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .chat-filter-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    .chat-filter-btn.active {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: var(--primary);
+      color: #60a5fa;
+      font-weight: 600;
+    }
+    .chat-filter-btn.takeover-filter.active {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: #ef4444;
+      color: #f87171;
+    }
+
+    .chat-item.takeover-urgent {
+      background: rgba(239, 68, 68, 0.08);
+      border-left: 3px solid #ef4444;
+    }
+    .chat-item.takeover-urgent:hover {
+      background: rgba(239, 68, 68, 0.14);
+    }
+
     /* Active Chat Pane */
     .chat-pane {
       display: flex;
@@ -1170,9 +1253,10 @@
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
         Knowledge Base (RAG)
       </a>
-      <a class="nav-item" onclick="switchTab('inbox')">
+      <a class="nav-item" onclick="switchTab('inbox')" style="display: flex; align-items: center;">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
-        Conversation Inbox
+        <span>Conversation Inbox</span>
+        <span id="inboxTakeoverBadge" class="badge-takeover-alert" style="display: none;">0</span>
       </a>
     </nav>
 
@@ -1381,6 +1465,38 @@
             <div class="form-hint">When a customer mentions any of these terms, the bot stops replying and flags the chat for human attention.</div>
           </div>
 
+          <div style="margin-top: 24px; padding: 18px 20px; background: rgba(245, 158, 11, 0.04); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+              <div>
+                <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
+                  <span>🚨</span> Human Takeover & Instant WhatsApp Alerts
+                </h4>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                  Get immediately notified on your personal WhatsApp and in-app whenever a customer triggers human takeover.
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+              <label class="form-label" style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="cfgNotifyOnTakeover" checked style="width: 17px; height: 17px; accent-color: var(--primary);">
+                <span style="font-weight: 600; color: #fff;">Send WhatsApp Alert to Manager Phone upon Takeover</span>
+              </label>
+              <div class="form-hint">When a customer mentions takeover keywords or asks for an agent, Evolution sends an instant WhatsApp alert with the customer's phone, name, and inquiry.</div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Manager WhatsApp Phone Number (with Country Code)</label>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <input type="text" id="cfgAdminNotificationPhone" class="form-input" placeholder="e.g. 15551234567 or +15551234567" style="max-width: 380px;">
+                <button type="button" class="btn btn-secondary" onclick="testNotificationAlert()" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12px;">
+                  <span>🔔</span> Send Test Alert
+                </button>
+              </div>
+              <div class="form-hint">Enter your phone digits with country code. Example: <code>15551234567</code> (US) or <code>447123456789</code> (UK) or <code>233...</code> (Ghana) or <code>5511...</code> (Brazil).</div>
+            </div>
+          </div>
+
           <button type="submit" class="btn btn-primary" style="padding: 12px 24px;">Save AI Configuration</button>
         </div>
       </form>
@@ -1448,14 +1564,23 @@
 
     <!-- VIEW 4: Conversation Inbox -->
     <div id="tab-inbox" class="view-content">
-      <div class="view-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div class="view-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 10px;">
         <div>
           <h2>Conversation Inbox & Live Agent Takeover</h2>
-          <p>Monitor WhatsApp conversations in real time, view AI vs. human replies, and pause or resume bot automation.</p>
+          <p>Monitor WhatsApp conversations in real time, receive immediate audio & push alerts on takeover, and reply live as a human.</p>
         </div>
-        <div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button id="btnSoundToggle" onclick="toggleSoundAlerts()" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px; display: flex; align-items: center; gap: 6px;" title="Toggle takeover chime sound">
+            <span id="soundIcon">🔔</span> <span id="soundText">Sound: ON</span>
+          </button>
+          <button id="btnPushToggle" onclick="requestDesktopNotifications()" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px; display: flex; align-items: center; gap: 6px;" title="Enable browser desktop notifications">
+            <span>📱</span> <span id="pushText">Desktop Alerts</span>
+          </button>
+          <button onclick="playChimeNotification()" class="btn btn-secondary" style="font-size: 12px; padding: 6px 10px;" title="Test sound chime">
+            🔊 Test Chime
+          </button>
           <button onclick="loadConversations()" class="btn btn-secondary" style="font-size: 12px; padding: 6px 14px; display: flex; align-items: center; gap: 6px;">
-            <span>↻</span> Refresh Conversations
+            <span>↻</span> Refresh
           </button>
         </div>
       </div>
@@ -1478,6 +1603,23 @@
               <input type="text" id="chatSearchInput" class="form-input chat-search-input" placeholder="Search contact or phone..." oninput="filterChatList()">
             </div>
           </div>
+
+          <!-- Quick Status Filter Bar -->
+          <div class="chat-filter-bar">
+            <button class="chat-filter-btn active" id="filterAll" onclick="setChatFilter('all')">All (<span id="countAll">0</span>)</button>
+            <button class="chat-filter-btn takeover-filter" id="filterTakeover" onclick="setChatFilter('takeover')">🚨 Takeover (<span id="countTakeover">0</span>)</button>
+            <button class="chat-filter-btn" id="filterBot" onclick="setChatFilter('bot')">🤖 Bot Active (<span id="countBot">0</span>)</button>
+          </div>
+
+          <!-- Urgent Takeover Alert Banner -->
+          <div id="takeoverAlertBanner" class="takeover-banner" style="display: none;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>🚨</span>
+              <span id="takeoverBannerText">1 chat needs human takeover!</span>
+            </div>
+            <button class="btn btn-secondary" style="padding: 3px 10px; font-size: 11px; color: #fff; background: rgba(239, 68, 68, 0.4); border-color: rgba(239, 68, 68, 0.6);" onclick="setChatFilter('takeover')">View</button>
+          </div>
+
           <div class="conversations-scroll" id="conversationsContainer">
             <div style="padding: 24px; text-align: center; color: var(--text-dim); font-size: 13px;">Loading conversations...</div>
           </div>
@@ -1679,6 +1821,12 @@
     let instancesList = [];
     let conversationsData = [];
     let activeConversationJid = null;
+    let currentFilter = 'all'; // 'all' | 'takeover' | 'bot'
+    let knownTakeoverJids = new Set();
+    let isSoundMuted = localStorage.getItem('evo_sound_muted') === 'true';
+    let titleAlertInterval = null;
+    const baseDocumentTitle = 'Evolution AI - Intelligent WhatsApp Assistant';
+    let backgroundTakeoverPollTimer = null;
 
     // Toast helper
     function showToast(message, isError = false) {
@@ -1906,6 +2054,8 @@
         document.getElementById('cfgSystemPrompt').value = cfg.systemPrompt || '';
         document.getElementById('cfgFallbackResponse').value = cfg.fallbackResponse || '';
         document.getElementById('cfgHumanTakeoverKeywords').value = cfg.humanTakeoverKeywords || '';
+        document.getElementById('cfgNotifyOnTakeover').checked = cfg.notifyOnTakeover !== false;
+        document.getElementById('cfgAdminNotificationPhone').value = cfg.adminNotificationPhone || '';
       } catch (err) {
         showToast(`Failed to load settings: ${err.message}`, true);
       }
@@ -1937,6 +2087,23 @@
       }
     }
 
+    async function testNotificationAlert() {
+      if (!currentInstance) return showToast('Please select an active instance first', true);
+      const phone = document.getElementById('cfgAdminNotificationPhone').value.trim();
+      if (!phone) return showToast('Please enter a WhatsApp phone number with country code first', true);
+
+      try {
+        showToast('Sending test alert to WhatsApp...');
+        const res = await apiRequest(`/settings/${encodeURIComponent(currentInstance)}/test-notification`, {
+          method: 'POST',
+          body: JSON.stringify({ phone }),
+        });
+        showToast(res.message || 'Test alert delivered successfully!');
+      } catch (err) {
+        showToast(`Test alert failed: ${err.message}`, true);
+      }
+    }
+
     async function saveSettings(e) {
       e.preventDefault();
       if (!currentInstance) return;
@@ -1957,6 +2124,8 @@
         systemPrompt: document.getElementById('cfgSystemPrompt').value,
         fallbackResponse: document.getElementById('cfgFallbackResponse').value,
         humanTakeoverKeywords: document.getElementById('cfgHumanTakeoverKeywords').value,
+        notifyOnTakeover: document.getElementById('cfgNotifyOnTakeover').checked,
+        adminNotificationPhone: document.getElementById('cfgAdminNotificationPhone').value.trim(),
       };
 
       try {
@@ -2203,14 +2372,233 @@
       autoGrowTextarea(input);
     }
 
+    // --- Takeover Notification & In-App Alert System ---
+    function updateSoundUi() {
+      const soundIcon = document.getElementById('soundIcon');
+      const soundText = document.getElementById('soundText');
+      if (soundIcon && soundText) {
+        soundIcon.textContent = isSoundMuted ? '🔕' : '🔔';
+        soundText.textContent = isSoundMuted ? 'Sound: OFF' : 'Sound: ON';
+      }
+    }
+
+    function toggleSoundAlerts() {
+      isSoundMuted = !isSoundMuted;
+      localStorage.setItem('evo_sound_muted', isSoundMuted);
+      updateSoundUi();
+      showToast(isSoundMuted ? 'Takeover audio chimes muted' : 'Takeover audio chimes active');
+      if (!isSoundMuted) {
+        playChimeNotification();
+      }
+    }
+
+    function playChimeNotification() {
+      if (isSoundMuted) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+
+        const now = ctx.currentTime;
+        // Tone 1: High crisp bell (587.33Hz D5 -> 880Hz A5)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(587.33, now);
+        osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+
+        gain1.gain.setValueAtTime(0.35, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.55);
+
+        // Tone 2: Echo bell slightly delayed (1174.66Hz D6)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(1174.66, now + 0.14);
+
+        gain2.gain.setValueAtTime(0.2, now + 0.14);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.14);
+        osc2.stop(now + 0.75);
+      } catch (err) {
+        console.warn('Audio chime warning:', err);
+      }
+    }
+
+    function updatePushBadge() {
+      const pushText = document.getElementById('pushText');
+      if (!pushText) return;
+      if (!('Notification' in window)) {
+        pushText.textContent = 'Push: Unsupported';
+        return;
+      }
+      if (Notification.permission === 'granted') {
+        pushText.textContent = 'Push: Active';
+      } else if (Notification.permission === 'denied') {
+        pushText.textContent = 'Push: Blocked';
+      } else {
+        pushText.textContent = 'Enable Push';
+      }
+    }
+
+    function requestDesktopNotifications() {
+      if (!('Notification' in window)) {
+        return showToast('Desktop notifications are not supported in this browser', true);
+      }
+      Notification.requestPermission().then(permission => {
+        updatePushBadge();
+        if (permission === 'granted') {
+          showToast('Desktop notifications enabled!');
+          new Notification('🚨 Evolution AI Takeover Alerts Active', {
+            body: 'You will receive immediate desktop alerts when a WhatsApp customer requires human takeover.',
+          });
+        } else {
+          showToast('Desktop notification permission was denied', true);
+        }
+      });
+    }
+
+    function dispatchDesktopNotification(title, body, remoteJid) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      try {
+        const notif = new Notification(title, {
+          body: body || 'Customer is waiting for a human agent.',
+          icon: 'https://cdn-icons-png.flaticon.com/512/1041/1041916.png',
+        });
+        notif.onclick = () => {
+          window.focus();
+          switchTab('inbox');
+          if (remoteJid) {
+            selectConversation(remoteJid);
+          }
+        };
+      } catch (err) {
+        console.warn('Desktop notification error:', err);
+      }
+    }
+
+    function startTitleFlashing(count) {
+      if (titleAlertInterval) return;
+      let flip = false;
+      titleAlertInterval = setInterval(() => {
+        flip = !flip;
+        document.title = flip ? `(${count}) 🚨 Human Takeover Needed!` : `⚠️ Takeover Alert | Evolution AI`;
+      }, 1200);
+    }
+
+    function stopTitleFlashing() {
+      if (titleAlertInterval) {
+        clearInterval(titleAlertInterval);
+        titleAlertInterval = null;
+        document.title = baseDocumentTitle;
+      }
+    }
+
+    function setChatFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.chat-filter-btn').forEach(btn => btn.classList.remove('active'));
+      if (filter === 'all') document.getElementById('filterAll')?.classList.add('active');
+      if (filter === 'takeover') document.getElementById('filterTakeover')?.classList.add('active');
+      if (filter === 'bot') document.getElementById('filterBot')?.classList.add('active');
+      filterChatList();
+    }
+
+    function startBackgroundAlertPolling() {
+      if (backgroundTakeoverPollTimer) clearInterval(backgroundTakeoverPollTimer);
+      backgroundTakeoverPollTimer = setInterval(() => {
+        if (currentInstance) {
+          loadConversations(true);
+        }
+      }, 5000);
+    }
+
     async function loadConversations(isBackground = false) {
       if (!currentInstance) return;
       try {
         const convs = await apiRequest(`/conversations/${encodeURIComponent(currentInstance)}`);
         conversationsData = convs || [];
+
+        const takeoverConvs = conversationsData.filter(c => c.status === 'human_takeover' || c.needsHumanAttention);
+        const botConvs = conversationsData.filter(c => c.status === 'bot' && !c.needsHumanAttention);
+
+        // Update counts
         const badge = document.getElementById('chatCountBadge');
         if (badge) badge.textContent = conversationsData.length;
-        renderConversationList(conversationsData);
+        const countAll = document.getElementById('countAll');
+        if (countAll) countAll.textContent = conversationsData.length;
+        const countTakeover = document.getElementById('countTakeover');
+        if (countTakeover) countTakeover.textContent = takeoverConvs.length;
+        const countBot = document.getElementById('countBot');
+        if (countBot) countBot.textContent = botConvs.length;
+
+        // Sidebar Takeover Alert Badge
+        const sidebarBadge = document.getElementById('inboxTakeoverBadge');
+        if (sidebarBadge) {
+          if (takeoverConvs.length > 0) {
+            sidebarBadge.textContent = takeoverConvs.length;
+            sidebarBadge.style.display = 'inline-block';
+          } else {
+            sidebarBadge.style.display = 'none';
+          }
+        }
+
+        // Takeover Alert Banner
+        const banner = document.getElementById('takeoverAlertBanner');
+        const bannerText = document.getElementById('takeoverBannerText');
+        if (banner) {
+          if (takeoverConvs.length > 0) {
+            if (bannerText) bannerText.textContent = `${takeoverConvs.length} conversation${takeoverConvs.length > 1 ? 's' : ''} require immediate human takeover!`;
+            banner.style.display = 'flex';
+          } else {
+            banner.style.display = 'none';
+          }
+        }
+
+        // Check for newly triggered takeover to trigger audio chime & push notification
+        const currentTakeoverJids = new Set(takeoverConvs.map(c => c.remoteJid));
+        let hasNewTakeover = false;
+        let newestTakeoverConv = null;
+
+        for (const c of takeoverConvs) {
+          if (!knownTakeoverJids.has(c.remoteJid)) {
+            hasNewTakeover = true;
+            newestTakeoverConv = c;
+            break;
+          }
+        }
+
+        if (hasNewTakeover && isBackground) {
+          playChimeNotification();
+          if (newestTakeoverConv) {
+            const name = newestTakeoverConv.contactName || newestTakeoverConv.remoteJid.split('@')[0];
+            dispatchDesktopNotification(
+              `🚨 Human Takeover: ${name}`,
+              newestTakeoverConv.lastMessage || 'Customer requested a human agent.',
+              newestTakeoverConv.remoteJid
+            );
+          }
+        }
+
+        knownTakeoverJids = currentTakeoverJids;
+
+        if (takeoverConvs.length > 0) {
+          startTitleFlashing(takeoverConvs.length);
+        } else {
+          stopTitleFlashing();
+        }
+
+        filterChatList();
       } catch (err) {
         if (!isBackground) {
           showToast(`Failed to load inbox: ${err.message}`, true);
@@ -2221,17 +2609,21 @@
     function renderConversationList(convs) {
       const container = document.getElementById('conversationsContainer');
       if (!convs || convs.length === 0) {
-        container.innerHTML = '<div style="padding: 32px 20px; text-align: center; color: var(--text-dim); font-size: 13px;">No WhatsApp conversations found for this instance yet.</div>';
+        const emptyMsg = currentFilter === 'takeover'
+          ? '🎉 No conversations waiting for human takeover right now.'
+          : 'No WhatsApp conversations found for this filter.';
+        container.innerHTML = `<div style="padding: 32px 20px; text-align: center; color: var(--text-dim); font-size: 13px;">${emptyMsg}</div>`;
         return;
       }
 
       container.innerHTML = convs.map(c => {
+        const isUrgent = c.status === 'human_takeover' || c.needsHumanAttention;
         let statusPill = `<span class="chat-status-pill" style="background: rgba(59,130,246,0.15); color: #60a5fa;">BOT</span>`;
         let statusDotColor = 'var(--primary)';
 
         if (c.status === 'human_takeover') {
-          statusPill = `<span class="chat-status-pill" style="background: rgba(245,158,11,0.2); color: #fbbf24;">TAKEOVER</span>`;
-          statusDotColor = 'var(--warning)';
+          statusPill = `<span class="chat-status-pill" style="background: rgba(239,68,68,0.25); color: #fca5a5; font-weight:800;">🚨 TAKEOVER</span>`;
+          statusDotColor = '#ef4444';
         } else if (c.status === 'paused') {
           statusPill = `<span class="chat-status-pill" style="background: rgba(255,255,255,0.1); color: var(--text-dim);">PAUSED</span>`;
           statusDotColor = 'var(--text-dim)';
@@ -2243,7 +2635,7 @@
         const timeStr = formatTimeAgo(c.lastCustomerMessageAt);
 
         return `
-          <div class="chat-item ${activeConversationJid === c.remoteJid ? 'active' : ''}" onclick="selectConversation('${c.remoteJid}', '${escapeHtml(name)}')">
+          <div class="chat-item ${isUrgent ? 'takeover-urgent' : ''} ${activeConversationJid === c.remoteJid ? 'active' : ''}" onclick="selectConversation('${c.remoteJid}', '${escapeHtml(name)}')">
             <div class="chat-avatar" style="background: ${gradient};">
               ${initials}
               <span class="chat-avatar-status" style="background: ${statusDotColor};"></span>
@@ -2264,15 +2656,24 @@
     }
 
     function filterChatList() {
-      const q = document.getElementById('chatSearchInput').value.toLowerCase().trim();
-      if (!q) {
-        renderConversationList(conversationsData);
-        return;
+      const q = document.getElementById('chatSearchInput')?.value.toLowerCase().trim() || '';
+      let list = conversationsData;
+
+      if (currentFilter === 'takeover') {
+        list = list.filter(c => c.status === 'human_takeover' || c.needsHumanAttention);
+      } else if (currentFilter === 'bot') {
+        list = list.filter(c => c.status === 'bot' && !c.needsHumanAttention);
       }
-      const filtered = conversationsData.filter(c =>
-        c.remoteJid.toLowerCase().includes(q) || (c.contactName && c.contactName.toLowerCase().includes(q)) || (c.lastMessage && c.lastMessage.toLowerCase().includes(q))
-      );
-      renderConversationList(filtered);
+
+      if (q) {
+        list = list.filter(c =>
+          c.remoteJid.toLowerCase().includes(q) ||
+          (c.contactName && c.contactName.toLowerCase().includes(q)) ||
+          (c.lastMessage && c.lastMessage.toLowerCase().includes(q))
+        );
+      }
+
+      renderConversationList(list);
     }
 
     async function selectConversation(remoteJid, displayName) {
@@ -2692,8 +3093,11 @@
 
     // Initialization
     async function initApp() {
+      updateSoundUi();
+      updatePushBadge();
       await loadInstances();
       loadDashboardStats();
+      startBackgroundAlertPolling();
     }
 
     if (authToken) {

@@ -53,6 +53,8 @@ export class CustomAiService {
           fallbackResponse:
             "I'm sorry, but I don't have enough information to answer that question accurately. Let me connect you with a member of our team.",
           humanTakeoverKeywords: 'human, agent, attendant, atendente, humano, support, representative',
+          adminNotificationPhone: null,
+          notifyOnTakeover: true,
           provider: env?.PROVIDER || 'openai',
           model: env?.MODEL || 'gpt-4o-mini',
           apiUrl: env?.API_URL || 'https://api.openai.com/v1',
@@ -184,6 +186,9 @@ export class CustomAiService {
         const handoffText = "I have flagged this conversation for a human team member. Someone will be with you shortly!";
         await this.sendWhatsAppReply(instanceName, remoteJid, handoffText);
 
+        // Alert the business manager/owner on WhatsApp if configured
+        await this.sendAdminTakeoverAlert(instanceName, config, remoteJid, pushName, messageText);
+
         await this.logMessage({
           instanceId,
           remoteJid,
@@ -200,6 +205,18 @@ export class CustomAiService {
       // If conversation is paused or handled by a human, do NOT reply automatically
       if (convState.status === 'human_takeover' || convState.status === 'paused') {
         this.logger.info(`AI reply suppressed for ${remoteJid}: status is ${convState.status}`);
+        
+        // Ensure needsHumanAttention is kept active for new incoming messages during takeover
+        if (convState.status === 'human_takeover') {
+          await this.prismaRepository.aiConversationState.update({
+            where: { id: convState.id },
+            data: {
+              needsHumanAttention: true,
+              lastCustomerMessageAt: new Date(),
+            },
+          });
+        }
+
         await this.logMessage({
           instanceId,
           remoteJid,
@@ -481,6 +498,55 @@ export class CustomAiService {
     } catch (err: any) {
       this.logger.error(`Failed to send WhatsApp message to ${remoteJid}: ${err.message}`);
       throw err;
+    }
+  }
+
+  /**
+   * Dispatches a WhatsApp notification alert to the configured manager phone number
+   * when a customer requests human takeover or flags attention
+   */
+  public async sendAdminTakeoverAlert(
+    instanceName: string,
+    config: any,
+    customerJid: string,
+    customerName?: string,
+    triggerMessage?: string,
+  ): Promise<void> {
+    try {
+      if (!config?.notifyOnTakeover || !config?.adminNotificationPhone) {
+        return;
+      }
+
+      const adminDigits = config.adminNotificationPhone.replace(/\D/g, '');
+      if (!adminDigits || adminDigits.length < 8) {
+        this.logger.warn(`Admin notification phone '${config.adminNotificationPhone}' is invalid`);
+        return;
+      }
+
+      // Avoid self-alert loop if admin happens to be chatting with the bot
+      const customerDigits = customerJid.replace('@s.whatsapp.net', '').replace('@lid', '').replace(/\D/g, '');
+      if (adminDigits === customerDigits) {
+        this.logger.debug(`Skipping admin alert: customer phone is identical to admin notification phone`);
+        return;
+      }
+
+      const displayName = customerName ? `${customerName} (+${customerDigits})` : `+${customerDigits}`;
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+      const alertText =
+        `🚨 *[Evolution AI Alert] Human Takeover Requested!*\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `👤 *Customer:* ${displayName}\n` +
+        `🏢 *Business:* ${config.businessName || instanceName}\n` +
+        `⏰ *Time:* ${timeStr}\n` +
+        `💬 *Message:* "${triggerMessage || 'Customer requested human agent'}"\n\n` +
+        `⚠️ *Action Required:* Auto-replies have been paused for this customer. Log into your dashboard to reply directly.`;
+
+      const targetJid = `${adminDigits}@s.whatsapp.net`;
+      await this.sendWhatsAppReply(instanceName, targetJid, alertText);
+      this.logger.info(`Takeover alert dispatched to WhatsApp +${adminDigits} for customer ${displayName}`);
+    } catch (err: any) {
+      this.logger.error(`Failed to send admin takeover alert: ${err.message}`);
     }
   }
 
