@@ -872,3 +872,19 @@ model AiMessageLog {
   @@index([providerMessageId])
 }
 
+model TenantUser {
+  id           String    @id @default(cuid())
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @db.VarChar(255)
+  businessName String    @db.VarChar(255)
+  role         String    @default("tenant") @db.VarChar(50)
+  instanceId   String?   @db.VarChar(255)
+  status       String    @default("active") @db.VarChar(50)
+  createdAt    DateTime? @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp
+  updatedAt    DateTime  @updatedAt @db.Timestamp
+
+  @@index([email])
+  @@index([instanceId])
+}
+
+

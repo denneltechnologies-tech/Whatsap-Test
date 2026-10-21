@@ -12,6 +12,8 @@ import { ConversationController } from '../controllers/conversation.controller';
 import { CustomAiController } from '../controllers/customAi.controller';
 import { KnowledgeController } from '../controllers/knowledge.controller';
 import { SettingsController } from '../controllers/settings.controller';
+import { TenantController } from '../controllers/tenant.controller';
+import { verifyToken } from '../utils/auth.util';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -31,6 +33,7 @@ export class CustomAiRouter {
     private readonly prismaRepository: PrismaRepository,
     private readonly configService: ConfigService,
     private readonly instanceController?: InstanceController,
+    private readonly tenantController?: TenantController,
   ) {
     this.router = Router();
     this.initRoutes();
@@ -40,7 +43,10 @@ export class CustomAiRouter {
    * Unified Authentication Guard:
    * Accepts:
    * 1. 'apikey' header matching AUTHENTICATION_API_KEY
-   * 2. 'Authorization: Bearer <token>' matching AUTHENTICATION_API_KEY or CUSTOM_AI_ADMIN_PASSWORD
+   * 2. 'Authorization: Bearer <token>' matching AUTHENTICATION_API_KEY, CUSTOM_AI_ADMIN_PASSWORD, or signed JWT
+   * Enforces multi-tenant instance isolation:
+   * - If user is a tenant, they can ONLY access routes for their assigned instanceName!
+   * - If user is a superadmin, they can access any instance.
    */
   private adminAuthMiddleware(): RequestHandler {
     return (req: Request, res: Response, next: NextFunction) => {
@@ -57,24 +63,93 @@ export class CustomAiRouter {
 
       const token = headerApiKey || bearerToken;
 
-      // Allow if token matches global API key or admin password
+      // 1. Direct master key authentication (Super Admin)
       if (token && ((globalKey && token === globalKey) || (adminPassword && token === adminPassword))) {
+        (req as any).user = {
+          userId: 'superadmin_master',
+          role: 'superadmin',
+          email: 'admin@evolution.local',
+        };
         return next();
       }
 
-      // If no admin password or global key is set (unconfigured), allow local dev
+      // 2. JWT Token verification
+      if (bearerToken) {
+        const decoded = verifyToken(bearerToken);
+        if (decoded && decoded.userId) {
+          (req as any).user = decoded;
+
+          // Multi-tenant instance isolation check
+          if (decoded.role === 'tenant' && decoded.instanceName) {
+            const requestedInstance =
+              req.params.instanceName || (req.query.instanceName as string) || req.body?.instanceName;
+
+            // If a specific instance is targeted, ensure it matches the tenant's instance
+            if (requestedInstance && requestedInstance !== decoded.instanceName) {
+              return res.status(403).json({
+                error: 'Forbidden: You do not have permission to access or modify this business instance',
+              });
+            }
+          }
+
+          return next();
+        }
+      }
+
+      // 3. Fallback for unconfigured local development
       if (!globalKey && !adminPassword) {
+        (req as any).user = { role: 'superadmin' };
         return next();
       }
 
-      return res.status(401).json({ error: 'Unauthorized: Invalid or missing API key / Admin password' });
+      return res.status(401).json({ error: 'Unauthorized: Invalid or missing authentication token' });
+    };
+  }
+
+  /**
+   * Superadmin-only guard for tenant management
+   */
+  private superAdminOnly(): RequestHandler {
+    return (req: Request, res: Response, next: NextFunction) => {
+      const user = (req as any).user;
+      if (!user || user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Forbidden: Super Admin privileges required' });
+      }
+      return next();
     };
   }
 
   private initRoutes() {
     const auth = this.adminAuthMiddleware();
+    const superAdmin = this.superAdminOnly();
 
-    // 1. Auth check endpoint
+    // 1a. User Login (Email/Password or API Key)
+    this.router.post('/auth/login', async (req: Request, res: Response) => {
+      try {
+        if (!this.tenantController) {
+          return res.status(500).json({ error: 'Tenant controller not initialized' });
+        }
+        const result = await this.tenantController.login(req.body);
+        return res.json(result);
+      } catch (err: any) {
+        return res.status(err.status || 401).json({ error: err.message });
+      }
+    });
+
+    // 1b. Current Authenticated Profile
+    this.router.get('/auth/me', auth, async (req: Request, res: Response) => {
+      try {
+        if (!this.tenantController) {
+          return res.status(500).json({ error: 'Tenant controller not initialized' });
+        }
+        const profile = await this.tenantController.getMe((req as any).user);
+        return res.json(profile);
+      } catch (err: any) {
+        return res.status(err.status || 401).json({ error: err.message });
+      }
+    });
+
+    // 1c. Legacy Auth check endpoint
     this.router.post('/auth/verify', async (req: Request, res: Response) => {
       const { password, apiKey } = req.body;
       const globalKey = this.configService.get<Auth>('AUTHENTICATION')?.API_KEY?.KEY;
@@ -89,6 +164,55 @@ export class CustomAiRouter {
         return res.json({ success: true, message: 'Authentication successful', token });
       }
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    });
+
+    // 1d. Multi-Tenant Business Management (Super Admin Only)
+    this.router.get('/admin/tenants', auth, superAdmin, async (req: Request, res: Response) => {
+      try {
+        if (!this.tenantController) {
+          return res.status(500).json({ error: 'Tenant controller not initialized' });
+        }
+        const list = await this.tenantController.listTenants();
+        return res.json(list);
+      } catch (err: any) {
+        return res.status(err.status || 500).json({ error: err.message });
+      }
+    });
+
+    this.router.post('/admin/tenants', auth, superAdmin, async (req: Request, res: Response) => {
+      try {
+        if (!this.tenantController) {
+          return res.status(500).json({ error: 'Tenant controller not initialized' });
+        }
+        const created = await this.tenantController.createTenant(req.body);
+        return res.status(201).json(created);
+      } catch (err: any) {
+        return res.status(err.status || 400).json({ error: err.message });
+      }
+    });
+
+    this.router.patch('/admin/tenants/:id', auth, superAdmin, async (req: Request, res: Response) => {
+      try {
+        if (!this.tenantController) {
+          return res.status(500).json({ error: 'Tenant controller not initialized' });
+        }
+        const updated = await this.tenantController.updateTenant(req.params.id, req.body);
+        return res.json(updated);
+      } catch (err: any) {
+        return res.status(err.status || 400).json({ error: err.message });
+      }
+    });
+
+    this.router.delete('/admin/tenants/:id', auth, superAdmin, async (req: Request, res: Response) => {
+      try {
+        if (!this.tenantController) {
+          return res.status(500).json({ error: 'Tenant controller not initialized' });
+        }
+        const deleted = await this.tenantController.deleteTenant(req.params.id);
+        return res.json(deleted);
+      } catch (err: any) {
+        return res.status(err.status || 400).json({ error: err.message });
+      }
     });
 
     // 2. Dashboard status & stats
@@ -154,6 +278,12 @@ export class CustomAiRouter {
           } catch (autoErr: any) {
             this.logger.warn(`Could not auto-create default instance: ${autoErr?.message || autoErr}`);
           }
+        }
+
+        // If requester is a tenant user, restrict instances list to only their assigned instance
+        const user = (req as any).user;
+        if (user && user.role === 'tenant' && user.instanceName) {
+          enriched = enriched.filter((i) => i.name === user.instanceName);
         }
 
         return res.json(enriched);

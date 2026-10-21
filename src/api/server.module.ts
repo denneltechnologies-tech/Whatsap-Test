@@ -24,6 +24,7 @@ import { ConversationController } from './integrations/chatbot/customAi/controll
 import { CustomAiController } from './integrations/chatbot/customAi/controllers/customAi.controller';
 import { KnowledgeController } from './integrations/chatbot/customAi/controllers/knowledge.controller';
 import { SettingsController as AiSettingsController } from './integrations/chatbot/customAi/controllers/settings.controller';
+import { TenantController } from './integrations/chatbot/customAi/controllers/tenant.controller';
 import { CustomAiService } from './integrations/chatbot/customAi/services/customAi.service';
 import { DifyController } from './integrations/chatbot/dify/controllers/dify.controller';
 import { DifyService } from './integrations/chatbot/dify/services/dify.service';
@@ -149,5 +150,6 @@ export const customAiController = new CustomAiController(customAiService, prisma
 export const knowledgeController = new KnowledgeController(prismaRepository, customAiService.ragService);
 export const aiSettingsController = new AiSettingsController(prismaRepository, customAiService);
 export const aiConversationController = new ConversationController(prismaRepository, customAiService);
+export const tenantController = new TenantController(prismaRepository, customAiService, configService, instanceController);
 
 logger.info('Module - ON');

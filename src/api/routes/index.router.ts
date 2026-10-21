@@ -12,6 +12,7 @@ import {
   instanceController,
   knowledgeController,
   prismaRepository,
+  tenantController,
   waMonitor,
 } from '@api/server.module';
 import { CustomAiRouter } from '@api/integrations/chatbot/customAi/routes/customAi.router';
@@ -186,6 +187,7 @@ router.use(
     prismaRepository,
     configService,
     instanceController,
+    tenantController,
   ).router,
 );
 

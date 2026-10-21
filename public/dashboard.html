@@ -79,6 +79,24 @@
       margin-bottom: 24px;
     }
 
+    .auth-tab-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .auth-tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+    }
+
     /* Layout */
     #sidebar {
       width: 260px;
@@ -1211,21 +1229,51 @@
 
   <!-- Auth Modal Overlay -->
   <div id="authOverlay">
-    <div class="auth-card">
-      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-        <div class="brand-icon">E</div>
+    <div class="auth-card" style="max-width: 440px;">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+        <div class="brand-icon" style="width: 42px; height: 42px; font-size: 20px;">E</div>
         <div>
           <h2>Evolution AI Platform</h2>
-          <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Customer Support AI</span>
+          <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">Multi-Tenant Support Suite</span>
         </div>
       </div>
-      <p>Enter the admin password or global API key to access the control center.</p>
-      <form id="authForm" onsubmit="handleAuth(event)">
-        <div class="form-group">
-          <label class="form-label">Password or API Key</label>
-          <input type="password" id="authKeyInput" class="form-input" placeholder="Enter key..." required autofocus>
+
+      <!-- Auth Method Switcher Tabs -->
+      <div style="display: flex; gap: 6px; background: rgba(0, 0, 0, 0.35); padding: 4px; border-radius: var(--radius-sm); margin-bottom: 20px;">
+        <button id="authTabBtnLogin" type="button" onclick="switchAuthTab('login')" class="auth-tab-btn active">
+          🏢 Business / Admin Login
+        </button>
+        <button id="authTabBtnMaster" type="button" onclick="switchAuthTab('master')" class="auth-tab-btn">
+          🔑 Master API Key
+        </button>
+      </div>
+
+      <!-- Form 1: Email & Password Login -->
+      <form id="emailLoginForm" onsubmit="handleEmailLogin(event)">
+        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+          Log in with your registered business email and password.
+        </p>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label">Email Address</label>
+          <input type="email" id="loginEmailInput" class="form-input" placeholder="e.g. business@company.com or admin@evolution.local" required autofocus>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Unlock Dashboard</button>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label class="form-label">Password</label>
+          <input type="password" id="loginPasswordInput" class="form-input" placeholder="Enter your password..." required>
+        </div>
+        <button type="submit" id="btnLoginSubmit" class="btn btn-primary" style="width: 100%; padding: 11px; font-weight: 600;">Sign In to Workspace</button>
+      </form>
+
+      <!-- Form 2: Master API Key Fallback -->
+      <form id="authForm" onsubmit="handleAuth(event)" style="display: none;">
+        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+          Enter the server master API key or custom AI admin password.
+        </p>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label class="form-label">Master API Key</label>
+          <input type="password" id="authKeyInput" class="form-input" placeholder="Enter master key...">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 11px; font-weight: 600;">Unlock via Master Key</button>
       </form>
     </div>
   </div>
@@ -1235,8 +1283,8 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div class="brand-text">
-        <h1>Evolution AI</h1>
-        <span>WhatsApp Support</span>
+        <h1 id="brandSidebarTitle">Evolution AI</h1>
+        <span id="brandSidebarSubtitle">WhatsApp Support</span>
       </div>
     </div>
 
@@ -1244,6 +1292,11 @@
       <a class="nav-item active" onclick="switchTab('dashboard')">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
         Overview
+      </a>
+      <a id="navItemTenants" class="nav-item" onclick="switchTab('tenants')" style="display: none;">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        <span>Business Accounts</span>
+        <span class="badge-tag" style="background: rgba(139, 92, 246, 0.25); color: #c4b5fd; font-size: 10px; margin-left: auto;">SaaS</span>
       </a>
       <a class="nav-item" onclick="switchTab('settings')">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -1271,7 +1324,7 @@
 
     <!-- Topbar -->
     <header class="topbar">
-      <div class="instance-selector">
+      <div class="instance-selector" id="topbarInstanceSelectorWrapper">
         <label style="font-size: 12px; color: var(--text-dim); text-transform: uppercase;">Active Instance:</label>
         <select id="instanceSelect" class="form-select" style="width: 180px; padding: 6px 12px;" onchange="onInstanceChanged()">
           <option value="">Loading instances...</option>
@@ -1282,12 +1335,16 @@
         </div>
       </div>
 
-      <div class="top-actions">
+      <div class="top-actions" style="display: flex; align-items: center; gap: 12px;">
+        <div id="currentUserPill" style="display: flex; align-items: center; gap: 8px; font-size: 12px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); padding: 5px 12px; border-radius: 20px;">
+          <span id="userRoleBadge" class="badge-tag" style="background: rgba(59,130,246,0.25); color: #60a5fa; font-weight: 700; font-size: 10px;">ADMIN</span>
+          <span id="userEmailDisplay" style="color: var(--text-main); font-weight: 500;">Signing in...</span>
+        </div>
         <button onclick="openQrModal()" class="btn btn-secondary">
           <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
           Connect WhatsApp
         </button>
-        <a href="/manager" target="_blank" class="btn btn-secondary" title="Official Evolution Manager">
+        <a id="linkEvolutionManager" href="/manager" target="_blank" class="btn btn-secondary" title="Official Evolution Manager">
           Evolution Manager
         </a>
       </div>
@@ -1676,6 +1733,69 @@
       </div>
     </div>
 
+    <!-- VIEW 5: Business Accounts (Multi-Tenant SaaS Management) -->
+    <div id="tab-tenants" class="view-content">
+      <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px;">
+        <div>
+          <h2>🏢 Business Accounts & Multi-Tenant Management</h2>
+          <p>Onboard client businesses, configure isolated WhatsApp instances, and supervise usage across the platform.</p>
+        </div>
+        <button onclick="openOnboardTenantModal()" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px;">
+          <span>+ Onboard New Business</span>
+        </button>
+      </div>
+
+      <!-- Multi-Tenant High-Level Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Businesses <span>🏢</span></div>
+          <div class="stat-value" id="statTotalTenants">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active WhatsApp Lines <span>📱</span></div>
+          <div class="stat-value" id="statActiveInstances" style="color: var(--success);">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Platform Conversations <span>💬</span></div>
+          <div class="stat-value" id="statTenantTotalChats" style="color: var(--primary);">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Platform AI Responses <span>⚡</span></div>
+          <div class="stat-value" id="statTenantTotalReplies" style="color: var(--purple);">0</div>
+        </div>
+      </div>
+
+      <!-- Tenants Table Card -->
+      <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <h3 class="card-title">Onboarded Businesses</h3>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" id="tenantSearchInput" class="form-input" placeholder="Search businesses..." style="width: 220px; padding: 6px 12px; font-size: 13px;" oninput="filterTenantsTable()">
+            <button onclick="loadTenants()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">↻ Refresh</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Business Name</th>
+                <th>Client Email</th>
+                <th>WhatsApp Instance</th>
+                <th>Connection Status</th>
+                <th>Total Chats</th>
+                <th>AI Replies</th>
+                <th>Account Status</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tenantsTableBody">
+              <tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading business accounts...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- QR Code / Pairing Modal -->
@@ -1811,15 +1931,82 @@
     </div>
   </div>
 
+  <!-- Modal: Onboard New Business -->
+  <div id="onboardTenantModal" class="modal-backdrop">
+    <div class="modal-window" style="max-width: 520px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+        <h3 class="card-title">🏢 Onboard New Business Client</h3>
+        <button onclick="closeModal('onboardTenantModal')" class="btn btn-secondary" style="padding: 4px 8px;">✕</button>
+      </div>
+      <form onsubmit="submitOnboardTenant(event)">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.45;">
+          Creates an isolated account for your business client with their own login, dedicated WhatsApp line, AI Assistant configuration, and private Knowledge Base (RAG).
+        </p>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label">Business Name *</label>
+          <input type="text" id="newTenantBizName" class="form-input" placeholder="e.g. Skyline Real Estate" required oninput="autoSuggestInstanceName(this.value)">
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label">Client Login Email *</label>
+          <input type="email" id="newTenantEmail" class="form-input" placeholder="e.g. client@skylinerealty.com" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label">Initial Password * (Minimum 6 characters)</label>
+          <input type="password" id="newTenantPassword" class="form-input" placeholder="Set a secure password..." required minlength="6">
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label class="form-label">WhatsApp Instance Identifier (Optional)</label>
+          <input type="text" id="newTenantInstanceName" class="form-input" placeholder="Auto-generated (e.g. skyline_real_estate)">
+          <div class="form-hint" style="font-size: 11.5px; color: var(--text-dim); margin-top: 4px;">Lowercase letters, numbers, and underscores only. Leave blank to auto-slugify business name.</div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 10px; border-top: 1px solid var(--border-color);">
+          <button type="button" onclick="closeModal('onboardTenantModal')" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="btnSubmitOnboard" class="btn btn-primary" style="font-weight: 600;">Create Business Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Reset Business Password -->
+  <div id="resetPasswordModal" class="modal-backdrop">
+    <div class="modal-window" style="max-width: 440px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+        <h3 class="card-title">🔑 Reset Client Password</h3>
+        <button onclick="closeModal('resetPasswordModal')" class="btn btn-secondary" style="padding: 4px 8px;">✕</button>
+      </div>
+      <form onsubmit="submitResetPassword(event)">
+        <input type="hidden" id="resetTenantId">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+          Resetting password for: <b id="resetTenantEmailLabel" style="color: var(--primary);"></b>
+        </p>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label class="form-label">New Password (Min 6 chars)</label>
+          <input type="password" id="resetTenantNewPassword" class="form-input" placeholder="Enter new password..." required minlength="6">
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 10px; border-top: 1px solid var(--border-color);">
+          <button type="button" onclick="closeModal('resetPasswordModal')" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="font-weight: 600;">Update Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast"></div>
 
   <script>
     // Global State
     let authToken = localStorage.getItem('evolution_ai_token') || '';
+    let currentUser = null;
+    try {
+      currentUser = JSON.parse(localStorage.getItem('evolution_ai_user') || 'null');
+    } catch (e) {
+      currentUser = null;
+    }
     let currentInstance = '';
     let instancesList = [];
     let conversationsData = [];
+    let tenantsList = [];
     let activeConversationJid = null;
     let currentFilter = 'all'; // 'all' | 'takeover' | 'bot'
     let knownTakeoverJids = new Set();
@@ -1867,7 +2054,69 @@
       return res.json();
     }
 
-    // Auth Handlers
+    // Auth Switcher Tabs (Business/Admin vs Master API Key)
+    function switchAuthTab(type) {
+      const btnLogin = document.getElementById('authTabBtnLogin');
+      const btnMaster = document.getElementById('authTabBtnMaster');
+      const formEmail = document.getElementById('emailLoginForm');
+      const formMaster = document.getElementById('authForm');
+
+      if (type === 'login') {
+        btnLogin.classList.add('active');
+        btnMaster.classList.remove('active');
+        formEmail.style.display = 'block';
+        formMaster.style.display = 'none';
+        document.getElementById('loginEmailInput').focus();
+      } else {
+        btnMaster.classList.add('active');
+        btnLogin.classList.remove('active');
+        formEmail.style.display = 'none';
+        formMaster.style.display = 'block';
+        document.getElementById('authKeyInput').focus();
+      }
+    }
+
+    // Email & Password Login Handler
+    async function handleEmailLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmailInput').value.trim();
+      const password = document.getElementById('loginPasswordInput').value;
+      const submitBtn = document.getElementById('btnLoginSubmit');
+      const origText = submitBtn.textContent;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Signing in...';
+
+      try {
+        const res = await fetch('/ai-bot/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Login failed. Please check your credentials.');
+        }
+
+        authToken = data.token;
+        currentUser = data.user;
+        localStorage.setItem('evolution_ai_token', authToken);
+        localStorage.setItem('evolution_ai_user', JSON.stringify(currentUser));
+
+        document.getElementById('authOverlay').style.display = 'none';
+        showToast(`Welcome back, ${currentUser.businessName || currentUser.email}!`);
+        applyUserRoleUi();
+        initApp();
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = origText;
+      }
+    }
+
+    // Master API Key Login Handler (Fallback)
     async function handleAuth(e) {
       e.preventDefault();
       const key = document.getElementById('authKeyInput').value.trim();
@@ -1880,9 +2129,17 @@
         const data = await res.json();
         if (data.success) {
           authToken = key;
+          currentUser = {
+            userId: 'superadmin_master',
+            role: 'superadmin',
+            email: 'admin@evolution.local',
+            businessName: 'Super Admin',
+          };
           localStorage.setItem('evolution_ai_token', authToken);
+          localStorage.setItem('evolution_ai_user', JSON.stringify(currentUser));
           document.getElementById('authOverlay').style.display = 'none';
-          showToast('Unlocked successfully');
+          showToast('Unlocked via Master Key (Super Admin)');
+          applyUserRoleUi();
           initApp();
         } else {
           showToast(data.error || 'Invalid credentials', true);
@@ -1892,9 +2149,51 @@
       }
     }
 
+    // Role-Based UI Adjustments
+    function applyUserRoleUi() {
+      if (!currentUser) return;
+
+      const isSuper = currentUser.role === 'superadmin';
+      const userRoleBadge = document.getElementById('userRoleBadge');
+      const userEmailDisplay = document.getElementById('userEmailDisplay');
+      const navItemTenants = document.getElementById('navItemTenants');
+      const instanceSelector = document.getElementById('topbarInstanceSelectorWrapper');
+      const brandSidebarTitle = document.getElementById('brandSidebarTitle');
+      const brandSidebarSubtitle = document.getElementById('brandSidebarSubtitle');
+
+      if (userRoleBadge) {
+        userRoleBadge.textContent = isSuper ? 'SUPER ADMIN' : 'BUSINESS';
+        userRoleBadge.style.background = isSuper ? 'rgba(139, 92, 246, 0.25)' : 'rgba(16, 185, 129, 0.25)';
+        userRoleBadge.style.color = isSuper ? '#c4b5fd' : '#86efac';
+      }
+
+      if (userEmailDisplay) {
+        userEmailDisplay.textContent = currentUser.email || 'Admin';
+      }
+
+      if (navItemTenants) {
+        navItemTenants.style.display = isSuper ? 'flex' : 'none';
+      }
+
+      if (brandSidebarTitle && !isSuper && currentUser.businessName) {
+        brandSidebarTitle.textContent = currentUser.businessName;
+      }
+
+      if (brandSidebarSubtitle) {
+        brandSidebarSubtitle.textContent = isSuper ? 'Multi-Tenant Master' : 'WhatsApp AI Workspace';
+      }
+
+      // If tenant, instance is strictly their own
+      if (!isSuper && currentUser.instanceName) {
+        currentInstance = currentUser.instanceName;
+      }
+    }
+
     function logout() {
       localStorage.removeItem('evolution_ai_token');
+      localStorage.removeItem('evolution_ai_user');
       authToken = '';
+      currentUser = null;
       document.getElementById('authOverlay').style.display = 'flex';
     }
 
@@ -1929,6 +2228,7 @@
       if (tabId === 'dashboard') loadDashboardStats();
       if (tabId === 'settings') loadSettings();
       if (tabId === 'knowledge') loadDocuments();
+      if (tabId === 'tenants') loadTenants();
       if (tabId === 'inbox') {
         loadConversations();
         inboxPollTimer = setInterval(() => {
@@ -1937,6 +2237,222 @@
             refreshActiveChatMessages(true);
           }
         }, 4000);
+      }
+    }
+
+    // ==========================================
+    // Multi-Tenant Business Management Functions
+    // ==========================================
+
+    async function loadTenants() {
+      if (!currentUser || currentUser.role !== 'superadmin') return;
+
+      const tableBody = document.getElementById('tenantsTableBody');
+      try {
+        const res = await apiRequest('/admin/tenants');
+        tenantsList = res.tenants || [];
+
+        // Update top summary cards
+        document.getElementById('statTotalTenants').textContent = tenantsList.length;
+        const activeCount = tenantsList.filter(t => t.whatsappStatus === 'open').length;
+        document.getElementById('statActiveInstances').textContent = activeCount;
+
+        const totalChats = tenantsList.reduce((acc, t) => acc + (t.totalConversations || 0), 0);
+        const totalReplies = tenantsList.reduce((acc, t) => acc + (t.totalAiReplies || 0), 0);
+        document.getElementById('statTenantTotalChats').textContent = totalChats;
+        document.getElementById('statTenantTotalReplies').textContent = totalReplies;
+
+        renderTenantsTable(tenantsList);
+      } catch (err) {
+        tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 20px;">Failed to load businesses: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function renderTenantsTable(list) {
+      const tableBody = document.getElementById('tenantsTableBody');
+      if (!list || list.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 32px;">
+              No businesses onboarded yet. Click <b>+ Onboard New Business</b> above to create your first client account!
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tableBody.innerHTML = list.map(t => {
+        const isOnline = t.whatsappStatus === 'open';
+        const isConnecting = t.whatsappStatus === 'connecting';
+        let waStatusBadge = `<span class="status-badge closed"><span class="status-dot"></span> Offline</span>`;
+        if (isOnline) {
+          waStatusBadge = `<span class="status-badge open"><span class="status-dot"></span> Online</span>`;
+        } else if (isConnecting) {
+          waStatusBadge = `<span class="status-badge connecting pulse"><span class="status-dot"></span> Connecting</span>`;
+        }
+
+        const isSuspended = t.status === 'suspended';
+        const statusBadge = isSuspended
+          ? `<span class="badge-tag" style="background: rgba(239,68,68,0.2); color: var(--danger);">Suspended</span>`
+          : `<span class="badge-tag" style="background: rgba(16,185,129,0.2); color: var(--success);">Active</span>`;
+
+        return `
+          <tr>
+            <td>
+              <div style="font-weight: 600; font-size: 13.5px; color: #fff;">${escapeHtml(t.businessName)}</div>
+              <div style="font-size: 11px; color: var(--text-dim);">Created ${new Date(t.createdAt).toLocaleDateString()}</div>
+            </td>
+            <td>
+              <span style="font-size: 13px; color: var(--text-muted);">${escapeHtml(t.email)}</span>
+            </td>
+            <td>
+              <code style="background: rgba(255,255,255,0.06); padding: 3px 6px; border-radius: 4px; font-size: 12px; color: var(--primary);">
+                ${escapeHtml(t.instanceName)}
+              </code>
+            </td>
+            <td>${waStatusBadge}</td>
+            <td style="font-weight: 600;">${t.totalConversations ?? 0}</td>
+            <td style="font-weight: 600; color: var(--primary);">${t.totalAiReplies ?? 0}</td>
+            <td>${statusBadge}</td>
+            <td style="text-align: right; white-space: nowrap;">
+              <button onclick="switchTenantWorkspace('${escapeHtml(t.instanceName)}')" class="btn btn-primary" style="padding: 4px 10px; font-size: 11.5px; margin-right: 4px;" title="Switch dashboard context to this business">
+                Access Workspace ➔
+              </button>
+              <button onclick="openResetPasswordModal('${t.id}', '${escapeHtml(t.email)}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11.5px; margin-right: 4px;" title="Reset Password">
+                🔑
+              </button>
+              <button onclick="toggleTenantStatus('${t.id}', '${t.status}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11.5px; margin-right: 4px; color: ${isSuspended ? 'var(--success)' : 'var(--warning)'};" title="${isSuspended ? 'Activate' : 'Suspend'}">
+                ${isSuspended ? '▶ Activate' : '⏸ Suspend'}
+              </button>
+              <button onclick="deleteTenantAccount('${t.id}', '${escapeHtml(t.businessName)}')" class="btn btn-danger" style="padding: 4px 8px; font-size: 11.5px;" title="Delete Business">
+                ✕
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterTenantsTable() {
+      const q = (document.getElementById('tenantSearchInput')?.value || '').toLowerCase().trim();
+      if (!q) {
+        renderTenantsTable(tenantsList);
+        return;
+      }
+      const filtered = tenantsList.filter(t => 
+        (t.businessName && t.businessName.toLowerCase().includes(q)) ||
+        (t.email && t.email.toLowerCase().includes(q)) ||
+        (t.instanceName && t.instanceName.toLowerCase().includes(q))
+      );
+      renderTenantsTable(filtered);
+    }
+
+    function autoSuggestInstanceName(val) {
+      const input = document.getElementById('newTenantInstanceName');
+      if (input) {
+        const slug = val.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        input.placeholder = slug ? slug : 'Auto-generated instance ID';
+      }
+    }
+
+    function openOnboardTenantModal() {
+      document.getElementById('newTenantBizName').value = '';
+      document.getElementById('newTenantEmail').value = '';
+      document.getElementById('newTenantPassword').value = '';
+      document.getElementById('newTenantInstanceName').value = '';
+      openModal('onboardTenantModal');
+    }
+
+    async function submitOnboardTenant(e) {
+      e.preventDefault();
+      const businessName = document.getElementById('newTenantBizName').value.trim();
+      const email = document.getElementById('newTenantEmail').value.trim();
+      const password = document.getElementById('newTenantPassword').value;
+      const instanceName = document.getElementById('newTenantInstanceName').value.trim();
+      const btn = document.getElementById('btnSubmitOnboard');
+      const origText = btn.textContent;
+
+      btn.disabled = true;
+      btn.textContent = 'Creating Account & Instance...';
+
+      try {
+        const res = await apiRequest('/admin/tenants', {
+          method: 'POST',
+          body: JSON.stringify({ businessName, email, password, instanceName }),
+        });
+
+        closeModal('onboardTenantModal');
+        showToast(res.message || 'Business account created successfully!');
+        await loadTenants();
+        await loadInstances();
+      } catch (err) {
+        showToast(`Failed to onboard: ${err.message}`, true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+    }
+
+    function switchTenantWorkspace(instanceName) {
+      currentInstance = instanceName;
+      const select = document.getElementById('instanceSelect');
+      if (select) select.value = instanceName;
+      onInstanceChanged();
+      switchTab('dashboard');
+      showToast(`Switched workspace to: ${instanceName}`);
+    }
+
+    function openResetPasswordModal(id, email) {
+      document.getElementById('resetTenantId').value = id;
+      document.getElementById('resetTenantEmailLabel').textContent = email;
+      document.getElementById('resetTenantNewPassword').value = '';
+      openModal('resetPasswordModal');
+    }
+
+    async function submitResetPassword(e) {
+      e.preventDefault();
+      const id = document.getElementById('resetTenantId').value;
+      const password = document.getElementById('resetTenantNewPassword').value;
+
+      try {
+        await apiRequest(`/admin/tenants/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ password }),
+        });
+        closeModal('resetPasswordModal');
+        showToast('Password updated successfully!');
+      } catch (err) {
+        showToast(`Password update failed: ${err.message}`, true);
+      }
+    }
+
+    async function toggleTenantStatus(id, currentStatus) {
+      const nextStatus = currentStatus === 'active' ? 'suspended' : 'active';
+      try {
+        await apiRequest(`/admin/tenants/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: nextStatus }),
+        });
+        showToast(`Business account is now ${nextStatus}`);
+        loadTenants();
+      } catch (err) {
+        showToast(`Failed to update status: ${err.message}`, true);
+      }
+    }
+
+    async function deleteTenantAccount(id, businessName) {
+      if (!confirm(`Are you sure you want to delete "${businessName}"? This will permanently remove their access and credentials.`)) {
+        return;
+      }
+      try {
+        await apiRequest(`/admin/tenants/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        });
+        showToast(`Account "${businessName}" deleted successfully`);
+        await loadTenants();
+        await loadInstances();
+      } catch (err) {
+        showToast(`Delete failed: ${err.message}`, true);
       }
     }
 
@@ -3093,19 +3609,41 @@
 
     // Initialization
     async function initApp() {
+      applyUserRoleUi();
       updateSoundUi();
       updatePushBadge();
       await loadInstances();
       loadDashboardStats();
       startBackgroundAlertPolling();
+
+      if (currentUser?.role === 'superadmin') {
+        loadTenants();
+      }
     }
 
-    if (authToken) {
-      document.getElementById('authOverlay').style.display = 'none';
-      initApp();
-    } else {
-      document.getElementById('authOverlay').style.display = 'flex';
+    // App Bootstrapping
+    async function bootstrap() {
+      if (!authToken) {
+        document.getElementById('authOverlay').style.display = 'flex';
+        return;
+      }
+
+      try {
+        // Verify current token and fetch up-to-date user info
+        const me = await apiRequest('/auth/me');
+        if (me && me.user) {
+          currentUser = me.user;
+          localStorage.setItem('evolution_ai_user', JSON.stringify(currentUser));
+        }
+        document.getElementById('authOverlay').style.display = 'none';
+        await initApp();
+      } catch (err) {
+        console.warn('Authentication expired or invalid:', err);
+        logout();
+      }
     }
+
+    bootstrap();
   </script>
 </body>
 </html>
