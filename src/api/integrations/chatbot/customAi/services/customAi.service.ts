@@ -27,6 +27,9 @@ export const DEFAULT_CUSTOM_RESTRICTIONS = `1. Never state or reveal that you ar
 4. If you do not have an answer to a specific question, never transfer immediately without asking. Always ask for customer approval first: "I don't have that specific information right now, but I can connect you with my colleague who can help. Would you like me to connect you?"
 5. Never authorize special discounts or custom agreements without management confirmation.`;
 
+export const DEFAULT_AUTO_RESUME_MESSAGE =
+  "Thank you so much for your patience! My colleague is currently tied up assisting other clients, but I'm back here to help you in the meantime. What can I assist you with?";
+
 export class CustomAiService {
   private readonly logger = new Logger('CustomAiService');
   public readonly ragService: RagService;
@@ -39,6 +42,16 @@ export class CustomAiService {
   ) {
     this.ragService = new RagService(prismaRepository);
     this.deduplicationService = new DeduplicationService(prismaRepository);
+
+    // Periodic monitor to auto-resume AI if human agent does not reply within configured minutes (default 10 mins)
+    const takeoverTimer = setInterval(() => {
+      this.checkPendingTakeovers().catch((err) => {
+        this.logger.error(`Error in periodic takeover monitor: ${err.message}`);
+      });
+    }, 60 * 1000);
+    if (takeoverTimer.unref) {
+      takeoverTimer.unref();
+    }
   }
 
   /**
@@ -63,6 +76,8 @@ export class CustomAiService {
           tonePreset: 'friendly',
           customInstructions: DEFAULT_CUSTOM_INSTRUCTIONS,
           customRestrictions: DEFAULT_CUSTOM_RESTRICTIONS,
+          autoResumeMinutes: 10,
+          autoResumeMessage: DEFAULT_AUTO_RESUME_MESSAGE,
           systemPrompt:
             env?.SYSTEM_PROMPT ||
             'You are a friendly, helpful team member. Answer customer questions politely and warmly based on our business details. Never invent prices or policies. If you do not have an answer to a question, say you don\'t have that information right now and offer to connect them to a colleague.',
@@ -268,6 +283,7 @@ export class CustomAiService {
             status: 'human_takeover',
             needsHumanAttention: true,
             takeoverReason: 'Customer approved connection to colleague',
+            takeoverAt: new Date(),
           },
         });
 
@@ -315,6 +331,7 @@ export class CustomAiService {
             status: 'human_takeover',
             needsHumanAttention: true,
             takeoverReason: 'Customer requested human agent',
+            takeoverAt: new Date(),
           },
         });
 
@@ -346,12 +363,33 @@ export class CustomAiService {
         return;
       }
 
-      // If conversation is paused or handled by a human, do NOT reply automatically
-      if (convState.status === 'human_takeover' || convState.status === 'paused') {
-        this.logger.info(`AI reply suppressed for ${remoteJid}: status is ${convState.status}`);
-        
-        // Ensure needsHumanAttention is kept active for new incoming messages during takeover
-        if (convState.status === 'human_takeover') {
+      // If conversation is in human takeover, check if auto-resume timeout expired
+      if (convState.status === 'human_takeover') {
+        const timeoutMinutes = (config as any).autoResumeMinutes ?? 10;
+        const takeoverTime = (convState as any).takeoverAt ? new Date((convState as any).takeoverAt).getTime() : 0;
+        const lastHumanTime = convState.lastHumanReplyAt ? new Date(convState.lastHumanReplyAt).getTime() : 0;
+        const noHumanReplied = lastHumanTime < takeoverTime;
+        const timeoutReached =
+          timeoutMinutes > 0 && takeoverTime > 0 && Date.now() - takeoverTime >= timeoutMinutes * 60 * 1000;
+
+        if (noHumanReplied && timeoutReached) {
+          this.logger.info(
+            `Auto-resuming AI for ${remoteJid}: customer sent a message and human has not replied within ${timeoutMinutes}m`
+          );
+          convState = await this.prismaRepository.aiConversationState.update({
+            where: { id: convState.id },
+            data: {
+              status: 'bot',
+              needsHumanAttention: false,
+              takeoverReason: null,
+              takeoverAt: null,
+            },
+          });
+          // Do NOT return: proceed to generate AI response for this incoming customer message!
+        } else {
+          this.logger.info(`AI reply suppressed for ${remoteJid}: status is human_takeover`);
+
+          // Ensure needsHumanAttention is kept active for new incoming messages during takeover
           await this.prismaRepository.aiConversationState.update({
             where: { id: convState.id },
             data: {
@@ -359,8 +397,20 @@ export class CustomAiService {
               lastCustomerMessageAt: new Date(),
             },
           });
-        }
 
+          await this.logMessage({
+            instanceId,
+            remoteJid,
+            providerMessageId: messageId,
+            direction: 'incoming',
+            senderType: 'customer',
+            content: messageText,
+          });
+          this.deduplicationService.markProcessed(messageId);
+          return;
+        }
+      } else if (convState.status === 'paused') {
+        this.logger.info(`AI reply suppressed for ${remoteJid}: status is paused`);
         await this.logMessage({
           instanceId,
           remoteJid,
@@ -440,6 +490,7 @@ export class CustomAiService {
             status: 'human_takeover',
             needsHumanAttention: true,
             takeoverReason: 'Customer connected to colleague / live representative',
+            takeoverAt: new Date(),
             lastAiReplyAt: new Date(),
             aiReplyCount: { increment: 1 },
           },
@@ -807,6 +858,79 @@ export class CustomAiService {
       });
     } catch (err: any) {
       this.logger.error(`Failed to record message log: ${err.message}`);
+    }
+  }
+
+  /**
+   * Periodically checks for pending human takeovers where no human has replied.
+   * If autoResumeMinutes elapsed, automatically resume the AI and send a polite re-engagement message.
+   */
+  public async checkPendingTakeovers(): Promise<void> {
+    try {
+      const pendingTakeovers = await (this.prismaRepository.aiConversationState as any).findMany({
+        where: {
+          status: 'human_takeover',
+          takeoverAt: { not: null },
+        },
+        include: {
+          Instance: {
+            include: {
+              AiAssistantConfig: true,
+            },
+          },
+        },
+      });
+
+      if (!pendingTakeovers || pendingTakeovers.length === 0) return;
+
+      const now = Date.now();
+      for (const conv of pendingTakeovers) {
+        const config = conv.Instance?.AiAssistantConfig;
+        if (!config || !config.enabled) continue;
+
+        const timeoutMinutes = config.autoResumeMinutes ?? 10;
+        if (timeoutMinutes <= 0) continue; // 0 disables auto-resume
+
+        const takeoverTime = conv.takeoverAt ? new Date(conv.takeoverAt).getTime() : 0;
+        const lastHumanTime = conv.lastHumanReplyAt ? new Date(conv.lastHumanReplyAt).getTime() : 0;
+
+        // If human replied after takeover began, do not auto-resume (human is actively managing)
+        if (lastHumanTime >= takeoverTime) continue;
+
+        // Check if timeout has elapsed
+        if (now - takeoverTime >= timeoutMinutes * 60 * 1000) {
+          this.logger.info(
+            `Auto-resuming conversation for ${conv.remoteJid} on instance ${conv.Instance.name}: human did not respond within ${timeoutMinutes} minutes`
+          );
+
+          // 1. Revert conversation state to bot
+          await (this.prismaRepository.aiConversationState as any).update({
+            where: { id: conv.id },
+            data: {
+              status: 'bot',
+              needsHumanAttention: false,
+              takeoverReason: null,
+              takeoverAt: null,
+            },
+          });
+
+          // 2. Dispatch polite re-engagement message to customer
+          const resumeText =
+            config.autoResumeMessage?.trim() || DEFAULT_AUTO_RESUME_MESSAGE;
+          await this.sendWhatsAppReply(conv.Instance.name, conv.remoteJid, resumeText);
+
+          // 3. Log the outgoing AI message
+          await this.logMessage({
+            instanceId: conv.instanceId,
+            remoteJid: conv.remoteJid,
+            direction: 'outgoing',
+            senderType: 'ai',
+            content: resumeText,
+          });
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Error in checkPendingTakeovers: ${err.message}`);
     }
   }
 }

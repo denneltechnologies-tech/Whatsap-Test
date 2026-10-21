@@ -777,6 +777,8 @@ model AiAssistantConfig {
   humanTakeoverKeywords String?   @default("human, agent, attendant, atendente, humano, support") @db.VarChar(500)
   adminNotificationPhone String?   @db.VarChar(50)
   notifyOnTakeover      Boolean   @default(true) @db.TinyInt
+  autoResumeMinutes     Int?      @default(10) @db.Int
+  autoResumeMessage     String?   @db.Text
   provider              String    @default("openai") @db.VarChar(50)
   model                 String    @default("gpt-4o-mini") @db.VarChar(100)
   apiUrl                String?   @db.VarChar(500)
@@ -840,6 +842,7 @@ model AiConversationState {
   status                String    @default("bot") @db.VarChar(30)
   needsHumanAttention   Boolean   @default(false) @db.TinyInt
   takeoverReason        String?   @db.VarChar(255)
+  takeoverAt            DateTime? @db.Timestamp
   lastCustomerMessageAt DateTime? @db.Timestamp
   lastAiReplyAt         DateTime? @db.Timestamp
   lastHumanReplyAt      DateTime? @db.Timestamp

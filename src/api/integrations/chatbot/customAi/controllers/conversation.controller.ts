@@ -463,6 +463,7 @@ export class ConversationController {
         status: 'bot',
         needsHumanAttention: false,
         takeoverReason: null,
+        takeoverAt: null,
       },
       create: {
         instanceId,
@@ -491,6 +492,7 @@ export class ConversationController {
         status: 'human_takeover',
         needsHumanAttention: true,
         takeoverReason: reason || 'Marked by administrator',
+        takeoverAt: new Date(),
       },
       create: {
         instanceId,
@@ -498,6 +500,7 @@ export class ConversationController {
         status: 'human_takeover',
         needsHumanAttention: true,
         takeoverReason: reason || 'Marked by administrator',
+        takeoverAt: new Date(),
       },
     });
 

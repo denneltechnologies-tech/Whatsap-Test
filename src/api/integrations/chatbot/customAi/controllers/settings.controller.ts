@@ -2,7 +2,12 @@ import { PrismaRepository } from '@api/repository/repository.service';
 import { Logger } from '@config/logger.config';
 import { BadRequestException, NotFoundException } from '@exceptions';
 
-import { CustomAiService, DEFAULT_CUSTOM_INSTRUCTIONS, DEFAULT_CUSTOM_RESTRICTIONS } from '../services/customAi.service';
+import {
+  CustomAiService,
+  DEFAULT_AUTO_RESUME_MESSAGE,
+  DEFAULT_CUSTOM_INSTRUCTIONS,
+  DEFAULT_CUSTOM_RESTRICTIONS,
+} from '../services/customAi.service';
 import { normalizeWhatsAppNumber } from '../utils/phone.util';
 
 export class SettingsController {
@@ -37,6 +42,8 @@ export class SettingsController {
     // Mask sensitive keys for frontend security & supply generic defaults if not set
     const maskedConfig = {
       ...config,
+      autoResumeMinutes: (config as any).autoResumeMinutes !== null && (config as any).autoResumeMinutes !== undefined ? (config as any).autoResumeMinutes : 10,
+      autoResumeMessage: (config as any).autoResumeMessage || DEFAULT_AUTO_RESUME_MESSAGE,
       customInstructions: config.customInstructions || DEFAULT_CUSTOM_INSTRUCTIONS,
       customRestrictions: config.customRestrictions || DEFAULT_CUSTOM_RESTRICTIONS,
       apiKey: config.apiKey ? `${config.apiKey.substring(0, 4)}...${config.apiKey.slice(-4)}` : '',
@@ -85,6 +92,8 @@ export class SettingsController {
           ? normalizeWhatsAppNumber(data.adminNotificationPhone)
           : (existing as any).adminNotificationPhone,
         notifyOnTakeover: data.notifyOnTakeover !== undefined ? Boolean(data.notifyOnTakeover) : (existing as any).notifyOnTakeover,
+        autoResumeMinutes: data.autoResumeMinutes !== undefined ? Number(data.autoResumeMinutes) : (existing as any).autoResumeMinutes ?? 10,
+        autoResumeMessage: data.autoResumeMessage !== undefined ? data.autoResumeMessage : (existing as any).autoResumeMessage,
         provider: data.provider || existing.provider,
         model: data.model || existing.model,
         apiUrl: data.apiUrl !== undefined ? data.apiUrl : existing.apiUrl,

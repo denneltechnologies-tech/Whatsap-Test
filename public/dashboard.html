@@ -2055,7 +2055,7 @@
               <div class="form-hint">When a customer mentions takeover keywords or asks for an agent, Evolution sends an instant WhatsApp alert with the customer's phone, name, and inquiry.</div>
             </div>
 
-            <div class="form-group" style="margin-bottom: 0;">
+            <div class="form-group" style="margin-bottom: 16px;">
               <label class="form-label">Manager WhatsApp Phone Number (with Country Code)</label>
               <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <input type="text" id="cfgAdminNotificationPhone" class="form-input" placeholder="e.g. 15551234567 or +15551234567" style="max-width: 380px;">
@@ -2064,6 +2064,27 @@
                 </button>
               </div>
               <div class="form-hint">Enter your phone digits with country code. Example: <code>15551234567</code> (US) or <code>447123456789</code> (UK) or <code>233...</code> (Ghana) or <code>5511...</code> (Brazil).</div>
+            </div>
+
+            <!-- Auto-Resume AI after human inactivity -->
+            <div style="margin-top: 18px; padding-top: 16px; border-top: 1px dashed rgba(245, 158, 11, 0.3);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 10px;">
+                <label class="form-label" style="margin: 0; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 6px;">
+                  <span>⏱️</span> Auto-Resume AI if Human Agent Does Not Respond
+                </label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 12px; color: var(--text-muted);">Wait for human:</span>
+                  <input type="number" id="cfgAutoResumeMinutes" class="form-input" min="0" max="1440" value="10" style="width: 75px; text-align: center; padding: 4px 8px; font-weight: 600;">
+                  <span style="font-size: 12px; color: var(--text-muted);">mins</span>
+                </div>
+              </div>
+              <div class="form-hint" style="margin-bottom: 12px;">
+                If a customer is handed over to a human but no agent replies within this time (default 10 mins), the system automatically switches back to AI so the customer is never left waiting. Set to 0 to disable.
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 12px; color: var(--text-muted);">Auto-Resume Re-engagement Message (Sent to customer when AI resumes)</label>
+                <textarea id="cfgAutoResumeMessage" class="form-textarea" style="min-height: 60px; font-size: 12.5px;" placeholder="Thank you so much for your patience! My colleague is currently tied up assisting other clients, but I'm back here to help you in the meantime. What can I assist you with?"></textarea>
+              </div>
             </div>
           </div>
 
@@ -3195,6 +3216,10 @@
         document.getElementById('cfgHumanTakeoverKeywords').value = cfg.humanTakeoverKeywords || '';
         document.getElementById('cfgNotifyOnTakeover').checked = cfg.notifyOnTakeover !== false;
         document.getElementById('cfgAdminNotificationPhone').value = cfg.adminNotificationPhone || '';
+        document.getElementById('cfgAutoResumeMinutes').value =
+          cfg.autoResumeMinutes !== undefined && cfg.autoResumeMinutes !== null ? cfg.autoResumeMinutes : 10;
+        document.getElementById('cfgAutoResumeMessage').value =
+          cfg.autoResumeMessage || DEFAULT_AUTO_RESUME_MESSAGE;
 
         // Custom Behavior & Tone (Pre-filled Generic Defaults)
         const tone = cfg.tonePreset || 'friendly';
@@ -3207,6 +3232,8 @@
         showToast(`Failed to load settings: ${err.message}`, true);
       }
     }
+
+    const DEFAULT_AUTO_RESUME_MESSAGE = `Thank you so much for your patience! My colleague is currently tied up assisting other clients, but I'm back here to help you in the meantime. What can I assist you with?`;
 
     const DEFAULT_GENERIC_INSTRUCTIONS = `1. Greet every customer warmly and politely, addressing them by their name if available.
 2. Provide clear, accurate, and helpful answers about our services, products, and operating hours based on our business details.
@@ -3318,6 +3345,10 @@
         humanTakeoverKeywords: document.getElementById('cfgHumanTakeoverKeywords').value,
         notifyOnTakeover: document.getElementById('cfgNotifyOnTakeover').checked,
         adminNotificationPhone: phoneNormalized || phoneRaw,
+        autoResumeMinutes: isNaN(parseInt(document.getElementById('cfgAutoResumeMinutes').value, 10))
+          ? 10
+          : parseInt(document.getElementById('cfgAutoResumeMinutes').value, 10),
+        autoResumeMessage: document.getElementById('cfgAutoResumeMessage').value,
       };
 
       try {
