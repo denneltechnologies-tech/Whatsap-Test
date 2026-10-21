@@ -124,7 +124,8 @@ export class SettingsController {
     }
 
     const testMessage =
-      `🔔 *[Evolution AI] Test Notification Received!*\n` +
+      `🔔 *[Dennel Tech WhatsApp AI Assistant]*\n` +
+      `*Test Notification Received!*\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `🏢 *Business:* ${config.businessName || instanceName}\n` +
       `⏰ *Time:* ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}\n\n` +
