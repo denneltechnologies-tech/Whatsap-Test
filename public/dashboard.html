@@ -591,29 +591,30 @@
     #tab-inbox.active {
       display: flex !important;
       flex-direction: column !important;
-      height: calc(100vh - 68px) !important;
-      max-height: calc(100vh - 68px) !important;
-      padding: 14px 24px 18px 24px !important;
+      height: calc(100vh - 74px) !important;
+      max-height: calc(100vh - 74px) !important;
+      padding: 10px 20px 14px 20px !important;
       overflow: hidden !important;
       box-sizing: border-box !important;
     }
 
     #tab-inbox .view-header {
-      margin-bottom: 10px !important;
+      margin-bottom: 8px !important;
       flex-shrink: 0 !important;
     }
 
     .inbox-container {
       display: grid;
       grid-template-columns: 360px 1fr;
-      flex: 1;
-      height: 100%;
-      min-height: 0;
+      flex: 1 1 0% !important;
+      min-height: 0 !important;
+      height: auto !important;
+      max-height: 100% !important;
       background: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
       box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
-      overflow: hidden;
+      overflow: hidden !important;
       position: relative;
     }
 
@@ -623,10 +624,10 @@
       backdrop-filter: blur(12px);
       display: flex;
       flex-direction: column;
-      height: 100%;
-      min-height: 0;
+      height: 100% !important;
+      min-height: 0 !important;
       min-width: 0;
-      overflow: hidden;
+      overflow: hidden !important;
     }
 
     .chat-list-header {
@@ -902,14 +903,14 @@
 
     /* Active Chat Pane */
     .chat-pane {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      min-height: 0;
+      display: flex !important;
+      flex-direction: column !important;
+      height: 100% !important;
+      min-height: 0 !important;
       background: #0d121c;
       position: relative;
       min-width: 0;
-      overflow: hidden;
+      overflow: hidden !important;
     }
 
     .chat-header {
@@ -921,7 +922,7 @@
       background: rgba(14, 19, 29, 0.85);
       backdrop-filter: blur(10px);
       z-index: 10;
-      flex-shrink: 0;
+      flex-shrink: 0 !important;
     }
 
     .chat-header-user {
@@ -965,31 +966,60 @@
 
     /* Message Area */
     .chat-messages {
-      flex: 1;
-      min-height: 0;
-      padding: 20px 24px;
-      overflow-y: scroll;
-      overflow-x: hidden;
+      flex: 1 1 0% !important;
+      min-height: 0 !important;
+      padding: 18px 24px !important;
+      overflow-y: scroll !important;
+      overflow-x: hidden !important;
       display: flex;
       flex-direction: column;
       gap: 12px;
       background: radial-gradient(circle at 50% 0%, rgba(20, 30, 48, 0.4) 0%, rgba(10, 14, 22, 0.95) 100%);
       scrollbar-width: thin;
-      scrollbar-color: rgba(59, 130, 246, 0.6) rgba(255, 255, 255, 0.05);
+      scrollbar-color: rgba(59, 130, 246, 0.7) rgba(255, 255, 255, 0.05);
+      scroll-behavior: smooth;
     }
 
     .chat-messages::-webkit-scrollbar {
-      width: 7px;
+      width: 8px !important;
     }
     .chat-messages::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.25);
+      background: rgba(10, 14, 22, 0.6) !important;
+      border-radius: 4px;
     }
     .chat-messages::-webkit-scrollbar-thumb {
-      background: rgba(59, 130, 246, 0.5);
-      border-radius: 6px;
+      background: rgba(59, 130, 246, 0.6) !important;
+      border-radius: 6px !important;
     }
     .chat-messages::-webkit-scrollbar-thumb:hover {
-      background: rgba(59, 130, 246, 0.85);
+      background: rgba(59, 130, 246, 0.9) !important;
+    }
+
+    .chat-scroll-bottom-btn {
+      position: absolute;
+      bottom: 150px;
+      right: 28px;
+      z-index: 30;
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid rgba(59, 130, 246, 0.5);
+      color: #93c5fd;
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(8px);
+    }
+    .chat-scroll-bottom-btn:hover {
+      background: #2563eb;
+      color: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 22px rgba(37, 99, 235, 0.5);
     }
 
     .msg-group-date {
@@ -1740,6 +1770,11 @@
             </div>
           </div>
 
+          <!-- Floating Jump to Bottom Button -->
+          <button id="btnScrollToBottom" class="chat-scroll-bottom-btn" onclick="scrollToChatBottom(true)" style="display: none;" title="Scroll to latest messages">
+            <span>↓ Jump to latest</span>
+          </button>
+
           <!-- Upgraded Conversational Reply Console -->
           <div class="chat-input-container" id="chatInputBar" style="display: none;">
             <div id="chatStatusNotice" class="chat-status-notice ai-active">
@@ -2296,6 +2331,15 @@
       if (targetNav && targetNav.classList) targetNav.classList.add('active');
       const targetTab = document.getElementById(`tab-${tabId}`);
       if (targetTab) targetTab.classList.add('active');
+
+      const mainEl = document.getElementById('main');
+      if (mainEl) {
+        if (tabId === 'inbox') {
+          mainEl.style.overflow = 'hidden';
+        } else {
+          mainEl.style.overflow = '';
+        }
+      }
 
       if (inboxPollTimer) {
         clearInterval(inboxPollTimer);
@@ -3240,8 +3284,9 @@
         const initials = getInitials(name);
         const gradient = getAvatarGradient(c.remoteJid);
         const timeStr = formatTimeAgo(c.lastMessageTime || c.lastCustomerMessageAt || c.updatedAt);
-        const rawPhone = c.remoteJid.replace('@s.whatsapp.net', '').replace('@lid', '').replace('@g.us', '');
-        const phoneFormatted = rawPhone.length > 5 ? `+${rawPhone}` : rawPhone;
+        const phoneSrc = c.phoneJid || c.remoteJid;
+        const rawPhone = phoneSrc.replace('@s.whatsapp.net', '').replace('@lid', '').replace('@g.us', '');
+        const phoneFormatted = rawPhone.length > 5 ? `+${rawPhone}` : (c.remoteJid.endsWith('@lid') ? 'WhatsApp Multi-Device' : rawPhone);
 
         return `
           <div class="chat-item ${isUrgent ? 'takeover-urgent' : ''} ${activeConversationJid === c.remoteJid ? 'active' : ''}" onclick="selectConversation('${c.remoteJid}', '${escapeHtml(name)}')">
@@ -3310,12 +3355,33 @@
       await refreshActiveChatMessages(false);
     }
 
+    function scrollToChatBottom(smooth = false) {
+      const area = document.getElementById('chatMessagesArea');
+      if (!area) return;
+      if (smooth) {
+        area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' });
+      } else {
+        area.scrollTop = area.scrollHeight;
+      }
+      const btn = document.getElementById('btnScrollToBottom');
+      if (btn) btn.style.display = 'none';
+
+      // Repeat after DOM reflow and images render
+      setTimeout(() => {
+        if (smooth) {
+          area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' });
+        } else {
+          area.scrollTop = area.scrollHeight;
+        }
+      }, 70);
+    }
+
     async function refreshActiveChatMessages(isBackground = false) {
       if (!activeConversationJid || !currentInstance) return;
       try {
         const data = await apiRequest(`/conversations/${encodeURIComponent(currentInstance)}/messages?remoteJid=${encodeURIComponent(activeConversationJid)}`);
         updateChatControls(data.state);
-        renderMessages(data.messages);
+        renderMessages(data.messages, !isBackground);
       } catch (err) {
         if (!isBackground) {
           showToast(`Error fetching messages: ${err.message}`, true);
@@ -3364,10 +3430,16 @@
       }
     }
 
-    function renderMessages(messages) {
+    function renderMessages(messages, isInitialOrUserAction = false) {
       const area = document.getElementById('chatMessagesArea');
+      if (!area) return;
+
+      const isNearBottom = (area.scrollHeight - area.scrollTop - area.clientHeight) < 140;
+
       if (!messages || messages.length === 0) {
         area.innerHTML = '<div style="margin: auto; color: var(--text-dim); text-align: center;"><div style="font-size: 28px; margin-bottom: 6px;">💬</div><div>No logged messages for this contact yet.</div></div>';
+        const btn = document.getElementById('btnScrollToBottom');
+        if (btn) btn.style.display = 'none';
         return;
       }
 
@@ -3406,8 +3478,30 @@
       });
 
       area.innerHTML = htmlChunks.join('');
-      area.scrollTop = area.scrollHeight;
+
+      // Auto-scroll logic: only auto-scroll if it's the initial chat opening or user is already at the bottom
+      if (isInitialOrUserAction || isNearBottom) {
+        scrollToChatBottom(false);
+      }
     }
+
+    // Attach scroll listener to toggle the floating jump to bottom button
+    setTimeout(() => {
+      const chatMsgAreaEl = document.getElementById('chatMessagesArea');
+      if (chatMsgAreaEl) {
+        chatMsgAreaEl.addEventListener('scroll', () => {
+          const scrollFromBottom = chatMsgAreaEl.scrollHeight - chatMsgAreaEl.scrollTop - chatMsgAreaEl.clientHeight;
+          const btn = document.getElementById('btnScrollToBottom');
+          if (btn) {
+            if (scrollFromBottom > 160) {
+              btn.style.display = 'flex';
+            } else {
+              btn.style.display = 'none';
+            }
+          }
+        });
+      }
+    }, 500);
 
     async function toggleActiveChatAi() {
       if (!activeConversationJid || !currentInstance) return;

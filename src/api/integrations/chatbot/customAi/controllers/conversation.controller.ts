@@ -46,13 +46,13 @@ export class ConversationController {
       chats = await (this.prismaRepository as any).chat.findMany({
         where: { instanceId },
         orderBy: { updatedAt: 'desc' },
-        take: 300,
+        take: 500,
       });
     } catch (err: any) {
       this.logger.warn(`Could not query Chat table: ${err.message}`);
     }
 
-    // 3. Fetch contacts for pushName and profile pictures
+    // 3. Fetch contacts for pushName and profile pictures (up to 3000 to cover full address book)
     let contacts: any[] = [];
     try {
       contacts = await (this.prismaRepository as any).contact.findMany({
@@ -62,7 +62,7 @@ export class ConversationController {
           pushName: true,
           profilePicUrl: true,
         },
-        take: 300,
+        take: 3000,
       });
     } catch (err: any) {
       this.logger.warn(`Could not query Contact table: ${err.message}`);
@@ -75,7 +75,34 @@ export class ConversationController {
       }
     }
 
-    // 4. Merge all distinct conversations
+    // 4. Fetch alternate JID links from Message table (LID <-> Phone JID)
+    const lidToPhoneMap = new Map<string, string>();
+    try {
+      const altRows = await (this.prismaRepository as any).message.findMany({
+        where: {
+          instanceId,
+          key: { path: ['remoteJidAlt'], string_contains: '@' },
+        },
+        select: { key: true },
+        take: 200,
+      });
+      for (const row of altRows) {
+        const k = row.key as any;
+        if (k?.remoteJid && k?.remoteJidAlt) {
+          if (typeof k.remoteJid === 'string' && typeof k.remoteJidAlt === 'string') {
+            if (k.remoteJid.endsWith('@lid') && k.remoteJidAlt.endsWith('@s.whatsapp.net')) {
+              lidToPhoneMap.set(k.remoteJid, k.remoteJidAlt);
+            } else if (k.remoteJidAlt.endsWith('@lid') && k.remoteJid.endsWith('@s.whatsapp.net')) {
+              lidToPhoneMap.set(k.remoteJidAlt, k.remoteJid);
+            }
+          }
+        }
+      }
+    } catch (e: any) {
+      this.logger.debug?.(`Alt JID map notice: ${e.message}`);
+    }
+
+    // 5. Merge all distinct conversations
     const convMap = new Map<string, any>();
 
     // Seed from WhatsApp native chats
@@ -127,7 +154,86 @@ export class ConversationController {
       });
     }
 
-    // Overlay contacts that might not have a Chat entry yet
+    // Add contacts from Message table that might not be in Chat
+    try {
+      const recentMessages = await (this.prismaRepository as any).message.findMany({
+        where: { instanceId },
+        orderBy: { messageTimestamp: 'desc' },
+        take: 300,
+        select: { key: true, messageTimestamp: true, message: true },
+      });
+
+      for (const m of recentMessages) {
+        const rJid = (m.key as any)?.remoteJid;
+        if (!rJid || rJid.includes('@broadcast') || rJid.includes('status@broadcast')) continue;
+
+        let existing = convMap.get(rJid);
+        const contact = contactMap.get(rJid);
+        const name = contact?.pushName || existing?.contactName || rJid.split('@')[0];
+        const msgTime = m.messageTimestamp ? new Date(m.messageTimestamp * 1000) : new Date(0);
+
+        if (!existing) {
+          existing = {
+            remoteJid: rJid,
+            instanceId,
+            status: 'bot',
+            needsHumanAttention: false,
+            aiReplyCount: 0,
+            humanReplyCount: 0,
+            contactName: name,
+            profilePicUrl: contact?.profilePicUrl,
+            lastMessage: null,
+            lastMessageSender: null,
+            lastMessageTime: msgTime,
+            unreadMessages: 0,
+          };
+          convMap.set(rJid, existing);
+        } else if (msgTime > new Date(existing.lastMessageTime || 0)) {
+          existing.lastMessageTime = msgTime;
+        }
+
+        if (!existing.lastMessage) {
+          let snippet = '';
+          const msgObj = m.message as any;
+          if (msgObj?.conversation) snippet = msgObj.conversation;
+          else if (msgObj?.extendedTextMessage?.text) snippet = msgObj.extendedTextMessage.text;
+          else if (msgObj?.imageMessage?.caption) snippet = `📷 ${msgObj.imageMessage.caption}`;
+          else if (msgObj?.imageMessage) snippet = '📷 Photo';
+          else if (msgObj?.audioMessage) snippet = '🎵 Audio message';
+          else if (msgObj?.videoMessage) snippet = '🎥 Video';
+          else if (msgObj?.documentMessage) snippet = `📄 ${msgObj.documentMessage.fileName || 'Document'}`;
+          const fromMe = Boolean((m.key as any)?.fromMe);
+          existing.lastMessage = snippet || 'WhatsApp message';
+          existing.lastMessageSender = fromMe ? 'human' : 'customer';
+        }
+      }
+    } catch (e: any) {
+      this.logger.warn(`Could not seed messages into conversations: ${e.message}`);
+    }
+
+    // Overlay AI Message logs for latest snippets
+    try {
+      const recentAiLogs = await (this.prismaRepository as any).aiMessageLog.findMany({
+        where: { instanceId },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+        select: { remoteJid: true, content: true, senderType: true, createdAt: true },
+      });
+
+      for (const log of recentAiLogs) {
+        if (!log.remoteJid) continue;
+        const conv = convMap.get(log.remoteJid);
+        if (conv) {
+          if (!conv.lastMessage || new Date(log.createdAt) > new Date(conv.lastMessageTime || 0)) {
+            conv.lastMessage = log.content;
+            conv.lastMessageSender = log.senderType;
+            conv.lastMessageTime = log.createdAt;
+          }
+        }
+      }
+    } catch {}
+
+    // Overlay contacts that might not have a Chat entry yet (seed top 300 contacts)
     for (const [jid, contact] of contactMap.entries()) {
       if (!jid || jid.includes('@broadcast') || jid.includes('status@broadcast') || convMap.has(jid)) {
         continue;
@@ -148,87 +254,32 @@ export class ConversationController {
       });
     }
 
-    // 5. Enrich with latest message
+    // Add mapped phone number property for LID conversations
+    for (const [jid, conv] of convMap.entries()) {
+      if (jid.endsWith('@lid')) {
+        const phoneJid = lidToPhoneMap.get(jid);
+        if (phoneJid) {
+          conv.phoneJid = phoneJid;
+        }
+      }
+    }
+
     const conversationList = Array.from(convMap.values());
-    const enriched = await Promise.all(
-      conversationList.map(async (conv) => {
-        // Priority 1: Check aiMessageLog
-        const lastLog = await (this.prismaRepository as any).aiMessageLog.findFirst({
-          where: {
-            instanceId,
-            remoteJid: conv.remoteJid,
-          },
-          orderBy: { createdAt: 'desc' },
-          select: {
-            content: true,
-            senderType: true,
-            createdAt: true,
-          },
-        });
-
-        if (lastLog) {
-          return {
-            ...conv,
-            lastMessage: lastLog.content,
-            lastMessageSender: lastLog.senderType,
-            lastMessageTime: lastLog.createdAt,
-          };
-        }
-
-        // Priority 2: Fallback to WhatsApp native message table
-        try {
-          const lastMsg = await (this.prismaRepository as any).message.findFirst({
-            where: {
-              instanceId,
-              key: { path: ['remoteJid'], equals: conv.remoteJid },
-            },
-            orderBy: { messageTimestamp: 'desc' },
-            select: {
-              message: true,
-              messageTimestamp: true,
-              key: true,
-            },
-          });
-
-          if (lastMsg) {
-            let snippet = '';
-            const m = lastMsg.message as any;
-            if (m?.conversation) snippet = m.conversation;
-            else if (m?.extendedTextMessage?.text) snippet = m.extendedTextMessage.text;
-            else if (m?.imageMessage?.caption) snippet = `📷 ${m.imageMessage.caption}`;
-            else if (m?.imageMessage) snippet = '📷 Photo';
-            else if (m?.audioMessage) snippet = '🎵 Voice message';
-            else if (m?.videoMessage) snippet = '🎥 Video';
-            else if (m?.documentMessage) snippet = `📄 ${m.documentMessage.fileName || 'Document'}`;
-
-            const fromMe = Boolean((lastMsg.key as any)?.fromMe);
-            return {
-              ...conv,
-              lastMessage: snippet || 'WhatsApp Message',
-              lastMessageSender: fromMe ? 'human' : 'customer',
-              lastMessageTime: new Date(lastMsg.messageTimestamp * 1000),
-            };
-          }
-        } catch {
-          // Ignore JSON path error
-        }
-
-        return conv;
-      }),
-    );
 
     // Sort by latest message time descending
-    enriched.sort((a, b) => {
+    conversationList.sort((a, b) => {
       const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
       const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
       return timeB - timeA;
     });
 
-    return enriched;
+    return conversationList;
   }
 
   /**
-   * Retrieves message log history for a specific customer JID
+   * Retrieves message log history for a specific customer JID.
+   * Merges AI message logs with all native WhatsApp messages,
+   * unifying phone JID and LID multi-device streams into a complete conversation history.
    */
   public async getMessages(instanceName: string, remoteJid: string) {
     if (!remoteJid) {
@@ -237,70 +288,135 @@ export class ConversationController {
 
     const instanceId = await this.getInstanceId(instanceName);
 
-    let messages = await (this.prismaRepository as any).aiMessageLog.findMany({
-      where: {
+    // 1. Determine all candidate JIDs for this conversation (e.g. phone @s.whatsapp.net and multi-device @lid)
+    const candidateJids = new Set<string>([remoteJid]);
+
+    // Check if there are alternative JIDs in the Message table
+    try {
+      const altLinks = await (this.prismaRepository as any).message.findMany({
+        where: {
+          instanceId,
+          OR: [
+            { key: { path: ['remoteJid'], equals: remoteJid } },
+            { key: { path: ['remoteJidAlt'], equals: remoteJid } },
+          ],
+        },
+        select: { key: true },
+        take: 50,
+      });
+
+      for (const m of altLinks) {
+        const k = m.key as any;
+        if (k?.remoteJid && typeof k.remoteJid === 'string') candidateJids.add(k.remoteJid);
+        if (k?.remoteJidAlt && typeof k.remoteJidAlt === 'string') candidateJids.add(k.remoteJidAlt);
+      }
+    } catch (e: any) {
+      this.logger.warn(`Could not fetch alt JIDs from message table: ${e.message}`);
+    }
+
+    const jidList = Array.from(candidateJids);
+
+    // 2. Fetch AI Message Logs for all candidate JIDs
+    let aiLogs: any[] = [];
+    try {
+      aiLogs = await (this.prismaRepository as any).aiMessageLog.findMany({
+        where: {
+          instanceId,
+          remoteJid: { in: jidList },
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 300,
+      });
+    } catch (e: any) {
+      this.logger.warn(`Could not query aiMessageLog: ${e.message}`);
+    }
+
+    // 3. Fetch native WhatsApp messages from Message table for all candidate JIDs
+    let nativeMessages: any[] = [];
+    try {
+      nativeMessages = await (this.prismaRepository as any).message.findMany({
+        where: {
+          instanceId,
+          OR: jidList.flatMap((j) => [
+            { key: { path: ['remoteJid'], equals: j } },
+            { key: { path: ['remoteJidAlt'], equals: j } },
+          ]),
+        },
+        orderBy: { messageTimestamp: 'asc' },
+        take: 300,
+      });
+    } catch (e: any) {
+      this.logger.warn(`Could not query message table: ${e.message}`);
+    }
+
+    // 4. Format native messages
+    const formattedNative = (nativeMessages || []).map((m: any) => {
+      let content = '';
+      const msgObj = m.message as any;
+      if (msgObj?.conversation) content = msgObj.conversation;
+      else if (msgObj?.extendedTextMessage?.text) content = msgObj.extendedTextMessage.text;
+      else if (msgObj?.imageMessage?.caption) content = `📷 ${msgObj.imageMessage.caption}`;
+      else if (msgObj?.imageMessage) content = '📷 Photo';
+      else if (msgObj?.audioMessage) content = '🎵 Audio message';
+      else if (msgObj?.videoMessage?.caption) content = `🎥 ${msgObj.videoMessage.caption}`;
+      else if (msgObj?.videoMessage) content = '🎥 Video';
+      else if (msgObj?.documentMessage) content = `📄 ${msgObj.documentMessage.fileName || 'Document'}`;
+      else if (msgObj?.contactMessage) content = `👤 Contact Card: ${msgObj.contactMessage.displayName || ''}`;
+      else if (msgObj?.locationMessage) content = `📍 Location`;
+      else content = '[Media Message]';
+
+      const fromMe = Boolean((m.key as any)?.fromMe);
+      const timestamp = m.messageTimestamp ? new Date(m.messageTimestamp * 1000) : m.createdAt || new Date();
+
+      return {
+        id: m.id || (m.key as any)?.id,
         instanceId,
-        remoteJid,
-      },
-      orderBy: { createdAt: 'asc' },
-      take: 150,
+        remoteJid: (m.key as any)?.remoteJid || remoteJid,
+        direction: fromMe ? 'outgoing' : 'incoming',
+        senderType: fromMe ? 'human' : 'customer',
+        content,
+        createdAt: timestamp,
+      };
     });
 
-    // Fallback to native WhatsApp messages if aiMessageLog is empty
-    if (!messages || messages.length === 0) {
-      try {
-        const nativeMessages = await (this.prismaRepository as any).message.findMany({
-          where: {
-            instanceId,
-            key: { path: ['remoteJid'], equals: remoteJid },
-          },
-          orderBy: { messageTimestamp: 'asc' },
-          take: 150,
-        });
+    // 5. Merge AI logs and native messages chronologically with deduplication
+    const mergedList: any[] = [...aiLogs];
 
-        if (nativeMessages && nativeMessages.length > 0) {
-          messages = nativeMessages.map((m: any) => {
-            let content = '';
-            const msgObj = m.message as any;
-            if (msgObj?.conversation) content = msgObj.conversation;
-            else if (msgObj?.extendedTextMessage?.text) content = msgObj.extendedTextMessage.text;
-            else if (msgObj?.imageMessage?.caption) content = `📷 ${msgObj.imageMessage.caption}`;
-            else if (msgObj?.imageMessage) content = '📷 Photo';
-            else if (msgObj?.audioMessage) content = '🎵 Audio message';
-            else if (msgObj?.videoMessage) content = '🎥 Video';
-            else if (msgObj?.documentMessage) content = `📄 ${msgObj.documentMessage.fileName || 'Document'}`;
-            else content = '[Media Message]';
-
-            const fromMe = Boolean((m.key as any)?.fromMe);
-            return {
-              id: m.id,
-              instanceId,
-              remoteJid,
-              direction: fromMe ? 'outgoing' : 'incoming',
-              senderType: fromMe ? 'human' : 'customer',
-              content,
-              createdAt: new Date(m.messageTimestamp * 1000),
-            };
-          });
+    for (const nm of formattedNative) {
+      // Deduplicate if matching content and sender within 8 seconds
+      const exists = aiLogs.some((al) => {
+        const timeDiff = Math.abs(new Date(al.createdAt).getTime() - new Date(nm.createdAt).getTime());
+        if (timeDiff < 8000 && al.content?.trim() === nm.content?.trim()) {
+          return true;
         }
-      } catch {
-        // Ignore fallback error
+        return false;
+      });
+
+      if (!exists) {
+        mergedList.push(nm);
       }
     }
 
-    const state = await (this.prismaRepository as any).aiConversationState.findUnique({
+    mergedList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    // 6. Get latest conversation state across candidate JIDs
+    let state = await (this.prismaRepository as any).aiConversationState.findFirst({
       where: {
-        instanceId_remoteJid: {
-          instanceId,
-          remoteJid,
-        },
+        instanceId,
+        remoteJid: { in: jidList },
       },
+      orderBy: { updatedAt: 'desc' },
     });
+
+    if (!state) {
+      state = { status: 'bot', needsHumanAttention: false };
+    }
 
     return {
       remoteJid,
-      state: state || { status: 'bot', needsHumanAttention: false },
-      messages: messages || [],
+      candidateJids: jidList,
+      state,
+      messages: mergedList,
     };
   }
 
