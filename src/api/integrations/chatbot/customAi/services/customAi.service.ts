@@ -8,6 +8,7 @@ import axios from 'axios';
 
 import { DeduplicationService } from './deduplication.service';
 import { RagService } from './rag.service';
+import { normalizeWhatsAppNumber } from '../utils/phone.util';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -517,7 +518,7 @@ export class CustomAiService {
         return;
       }
 
-      const adminDigits = config.adminNotificationPhone.replace(/\D/g, '');
+      const adminDigits = normalizeWhatsAppNumber(config.adminNotificationPhone);
       if (!adminDigits || adminDigits.length < 8) {
         this.logger.warn(`Admin notification phone '${config.adminNotificationPhone}' is invalid`);
         return;

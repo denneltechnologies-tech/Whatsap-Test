@@ -588,11 +588,27 @@
     }
 
     /* Conversation Inbox layout */
+    #tab-inbox.active {
+      display: flex !important;
+      flex-direction: column !important;
+      height: calc(100vh - 68px) !important;
+      max-height: calc(100vh - 68px) !important;
+      padding: 14px 24px 18px 24px !important;
+      overflow: hidden !important;
+      box-sizing: border-box !important;
+    }
+
+    #tab-inbox .view-header {
+      margin-bottom: 10px !important;
+      flex-shrink: 0 !important;
+    }
+
     .inbox-container {
       display: grid;
-      grid-template-columns: 350px 1fr;
-      height: calc(100vh - 195px);
-      min-height: 560px;
+      grid-template-columns: 360px 1fr;
+      flex: 1;
+      height: 100%;
+      min-height: 0;
       background: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
@@ -608,7 +624,9 @@
       display: flex;
       flex-direction: column;
       height: 100%;
+      min-height: 0;
       min-width: 0;
+      overflow: hidden;
     }
 
     .chat-list-header {
@@ -678,22 +696,25 @@
 
     .conversations-scroll {
       flex: 1;
-      overflow-y: auto;
+      min-height: 0;
+      overflow-y: scroll;
       overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(59, 130, 246, 0.6) rgba(255, 255, 255, 0.05);
     }
 
     .conversations-scroll::-webkit-scrollbar {
-      width: 5px;
+      width: 7px;
     }
     .conversations-scroll::-webkit-scrollbar-track {
-      background: transparent;
+      background: rgba(0, 0, 0, 0.25);
     }
     .conversations-scroll::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
+      background: rgba(59, 130, 246, 0.5);
+      border-radius: 6px;
     }
     .conversations-scroll::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(59, 130, 246, 0.85);
     }
 
     .chat-item {
@@ -884,9 +905,11 @@
       display: flex;
       flex-direction: column;
       height: 100%;
+      min-height: 0;
       background: #0d121c;
       position: relative;
       min-width: 0;
+      overflow: hidden;
     }
 
     .chat-header {
@@ -943,21 +966,30 @@
     /* Message Area */
     .chat-messages {
       flex: 1;
+      min-height: 0;
       padding: 20px 24px;
-      overflow-y: auto;
+      overflow-y: scroll;
       overflow-x: hidden;
       display: flex;
       flex-direction: column;
       gap: 12px;
       background: radial-gradient(circle at 50% 0%, rgba(20, 30, 48, 0.4) 0%, rgba(10, 14, 22, 0.95) 100%);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(59, 130, 246, 0.6) rgba(255, 255, 255, 0.05);
     }
 
     .chat-messages::-webkit-scrollbar {
-      width: 6px;
+      width: 7px;
+    }
+    .chat-messages::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.25);
     }
     .chat-messages::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.12);
-      border-radius: 4px;
+      background: rgba(59, 130, 246, 0.5);
+      border-radius: 6px;
+    }
+    .chat-messages::-webkit-scrollbar-thumb:hover {
+      background: rgba(59, 130, 246, 0.85);
     }
 
     .msg-group-date {
@@ -2048,10 +2080,55 @@
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || `Request failed with status ${res.status}`);
+        let errMsg = '';
+        if (errorData.response) {
+          if (typeof errorData.response === 'string') {
+            errMsg = errorData.response;
+          } else if (errorData.response.message) {
+            errMsg = Array.isArray(errorData.response.message) ? errorData.response.message.join(', ') : String(errorData.response.message);
+          } else if (errorData.response.exists === false) {
+            errMsg = `Number ${errorData.response.number || ''} is not registered on WhatsApp. Check country code and phone number.`;
+          } else if (errorData.response.error) {
+            errMsg = typeof errorData.response.error === 'string' ? errorData.response.error : JSON.stringify(errorData.response.error);
+          } else {
+            errMsg = JSON.stringify(errorData.response);
+          }
+        }
+        if (!errMsg && errorData.message) {
+          errMsg = typeof errorData.message === 'string' ? errorData.message : JSON.stringify(errorData.message);
+        }
+        if (!errMsg && errorData.error) {
+          errMsg = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+        }
+        if (!errMsg) {
+          errMsg = `Request failed with status ${res.status}`;
+        }
+        throw new Error(errMsg);
       }
 
       return res.json();
+    }
+
+    // WhatsApp Phone Number Normalizer
+    function sanitizePhoneNumber(phone) {
+      if (!phone) return '';
+      let digits = phone.trim().replace(/\D/g, '');
+      if (digits.startsWith('00')) {
+        digits = digits.substring(2);
+      }
+      // Ghana local 10-digit number starting with 0 (e.g. 0273557256 -> 233273557256)
+      if (digits.startsWith('0') && digits.length === 10) {
+        digits = '233' + digits.substring(1);
+      }
+      // Ghana international with local 0 (e.g. 2330273557256 -> 233273557256)
+      if (digits.startsWith('2330') && digits.length === 13) {
+        digits = '233' + digits.substring(4);
+      }
+      // UK local 11-digit starting with 07
+      if (digits.startsWith('07') && digits.length === 11) {
+        digits = '44' + digits.substring(1);
+      }
+      return digits;
     }
 
     // Auth Switcher Tabs (Business/Admin vs Master API Key)
@@ -2605,11 +2682,19 @@
 
     async function testNotificationAlert() {
       if (!currentInstance) return showToast('Please select an active instance first', true);
-      const phone = document.getElementById('cfgAdminNotificationPhone').value.trim();
+      const inputEl = document.getElementById('cfgAdminNotificationPhone');
+      let phone = inputEl.value.trim();
       if (!phone) return showToast('Please enter a WhatsApp phone number with country code first', true);
 
+      // Auto-format for user convenience
+      const normalized = sanitizePhoneNumber(phone);
+      if (normalized && normalized !== phone) {
+        inputEl.value = normalized;
+        phone = normalized;
+      }
+
       try {
-        showToast('Sending test alert to WhatsApp...');
+        showToast(`Sending test alert to +${phone} on WhatsApp...`);
         const res = await apiRequest(`/settings/${encodeURIComponent(currentInstance)}/test-notification`, {
           method: 'POST',
           body: JSON.stringify({ phone }),
@@ -2623,6 +2708,12 @@
     async function saveSettings(e) {
       e.preventDefault();
       if (!currentInstance) return;
+
+      const phoneRaw = document.getElementById('cfgAdminNotificationPhone').value.trim();
+      const phoneNormalized = sanitizePhoneNumber(phoneRaw);
+      if (phoneNormalized && phoneNormalized !== phoneRaw) {
+        document.getElementById('cfgAdminNotificationPhone').value = phoneNormalized;
+      }
 
       const payload = {
         enabled: document.getElementById('cfgEnabled').checked,
@@ -2641,7 +2732,7 @@
         fallbackResponse: document.getElementById('cfgFallbackResponse').value,
         humanTakeoverKeywords: document.getElementById('cfgHumanTakeoverKeywords').value,
         notifyOnTakeover: document.getElementById('cfgNotifyOnTakeover').checked,
-        adminNotificationPhone: document.getElementById('cfgAdminNotificationPhone').value.trim(),
+        adminNotificationPhone: phoneNormalized || phoneRaw,
       };
 
       try {
@@ -3148,7 +3239,9 @@
         const name = c.contactName || c.remoteJid.split('@')[0];
         const initials = getInitials(name);
         const gradient = getAvatarGradient(c.remoteJid);
-        const timeStr = formatTimeAgo(c.lastCustomerMessageAt);
+        const timeStr = formatTimeAgo(c.lastMessageTime || c.lastCustomerMessageAt || c.updatedAt);
+        const rawPhone = c.remoteJid.replace('@s.whatsapp.net', '').replace('@lid', '').replace('@g.us', '');
+        const phoneFormatted = rawPhone.length > 5 ? `+${rawPhone}` : rawPhone;
 
         return `
           <div class="chat-item ${isUrgent ? 'takeover-urgent' : ''} ${activeConversationJid === c.remoteJid ? 'active' : ''}" onclick="selectConversation('${c.remoteJid}', '${escapeHtml(name)}')">
@@ -3161,6 +3254,7 @@
                 <span class="chat-name">${escapeHtml(name)}</span>
                 <span class="chat-time">${timeStr}</span>
               </div>
+              <div style="font-size: 11px; color: var(--text-dim); margin-top: -1px; margin-bottom: 3px; font-family: monospace;">${phoneFormatted}</div>
               <div class="chat-item-sub">
                 <div class="chat-preview">${escapeHtml(c.lastMessage || 'No messages logged')}</div>
                 ${statusPill}
@@ -3615,6 +3709,17 @@
       await loadInstances();
       loadDashboardStats();
       startBackgroundAlertPolling();
+
+      const phoneInput = document.getElementById('cfgAdminNotificationPhone');
+      if (phoneInput && !phoneInput.dataset.bound) {
+        phoneInput.dataset.bound = 'true';
+        phoneInput.addEventListener('blur', function() {
+          const norm = sanitizePhoneNumber(this.value);
+          if (norm && norm !== this.value) {
+            this.value = norm;
+          }
+        });
+      }
 
       if (currentUser?.role === 'superadmin') {
         loadTenants();

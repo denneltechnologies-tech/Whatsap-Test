@@ -3,6 +3,7 @@ import { Logger } from '@config/logger.config';
 import { BadRequestException, NotFoundException } from '@exceptions';
 
 import { CustomAiService } from '../services/customAi.service';
+import { normalizeWhatsAppNumber } from '../utils/phone.util';
 
 export class SettingsController {
   private readonly logger = new Logger('SettingsController');
@@ -75,7 +76,9 @@ export class SettingsController {
         systemPrompt: data.systemPrompt !== undefined ? data.systemPrompt : existing.systemPrompt,
         fallbackResponse: data.fallbackResponse !== undefined ? data.fallbackResponse : existing.fallbackResponse,
         humanTakeoverKeywords: data.humanTakeoverKeywords !== undefined ? data.humanTakeoverKeywords : existing.humanTakeoverKeywords,
-        adminNotificationPhone: data.adminNotificationPhone !== undefined ? data.adminNotificationPhone : (existing as any).adminNotificationPhone,
+        adminNotificationPhone: data.adminNotificationPhone !== undefined
+          ? normalizeWhatsAppNumber(data.adminNotificationPhone)
+          : (existing as any).adminNotificationPhone,
         notifyOnTakeover: data.notifyOnTakeover !== undefined ? Boolean(data.notifyOnTakeover) : (existing as any).notifyOnTakeover,
         provider: data.provider || existing.provider,
         model: data.model || existing.model,
@@ -115,8 +118,8 @@ export class SettingsController {
       throw new BadRequestException('Please provide a WhatsApp phone number to test');
     }
 
-    const adminDigits = targetPhone.replace(/\D/g, '');
-    if (adminDigits.length < 8) {
+    const adminDigits = normalizeWhatsAppNumber(targetPhone);
+    if (!adminDigits || adminDigits.length < 8) {
       throw new BadRequestException('Phone number must contain at least 8 digits with country code');
     }
 
@@ -125,9 +128,28 @@ export class SettingsController {
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `🏢 *Business:* ${config.businessName || instanceName}\n` +
       `⏰ *Time:* ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}\n\n` +
-      `✅ *Success!* Your WhatsApp takeover notifications are configured properly. When a customer requires human attention, an alert will be sent to this number automatically.`;
+      `✅ *Success!* Your WhatsApp takeover notifications are configured properly. When a customer requires human attention, an alert will be sent to this number (+${adminDigits}) automatically.`;
 
-    await this.customAiService.sendWhatsAppReply(instanceName, `${adminDigits}@s.whatsapp.net`, testMessage);
+    try {
+      await this.customAiService.sendWhatsAppReply(instanceName, `${adminDigits}@s.whatsapp.net`, testMessage);
+    } catch (err: any) {
+      this.logger.error(`Failed to send test alert to ${adminDigits}: ${err?.message || err}`);
+      let errorMsg = 'Failed to deliver message via WhatsApp';
+
+      if (err?.response && typeof err.response === 'object') {
+        if (err.response.exists === false) {
+          errorMsg = `The phone number +${adminDigits} is not registered on WhatsApp. Please check the country code and digits.`;
+        } else if (err.response.message) {
+          errorMsg = Array.isArray(err.response.message) ? err.response.message.join(', ') : String(err.response.message);
+        } else if (err.response.error) {
+          errorMsg = String(err.response.error);
+        }
+      } else if (err?.message) {
+        errorMsg = typeof err.message === 'string' ? err.message : JSON.stringify(err.message);
+      }
+
+      throw new BadRequestException(errorMsg);
+    }
 
     return {
       message: `Test alert sent successfully to +${adminDigits} via WhatsApp!`,
