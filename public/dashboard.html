@@ -1929,26 +1929,111 @@
         </div>
 
         <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Prompting & Grounding Behavior</h3>
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+                <span>🎭</span> AI Personality, Behavior & Restrictions
+              </h3>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                Customize how your AI talks, what actions it encourages, and strict boundaries it must never cross.
+              </div>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">System Instructions</label>
-            <textarea id="cfgSystemPrompt" class="form-textarea" style="min-height: 120px;"></textarea>
-            <div class="form-hint">The knowledge base will be appended to this prompt automatically during inquiries.</div>
+          <!-- 1. Tone Preset -->
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label">Tone of Voice & Communication Style</label>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 6px;">
+              <label class="tone-card" style="display: flex; flex-direction: column; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: var(--text-main);">
+                  <input type="radio" name="toneRadio" value="friendly" checked onchange="onToneSelected('friendly')" style="accent-color: var(--primary);">
+                  <span>🤝 Friendly & Warm</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Empathetic, welcoming, and approachable.</div>
+              </label>
+
+              <label class="tone-card" style="display: flex; flex-direction: column; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: var(--text-main);">
+                  <input type="radio" name="toneRadio" value="professional" onchange="onToneSelected('professional')" style="accent-color: var(--primary);">
+                  <span>💼 Professional</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Polished, corporate, and courteous.</div>
+              </label>
+
+              <label class="tone-card" style="display: flex; flex-direction: column; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: var(--text-main);">
+                  <input type="radio" name="toneRadio" value="luxury" onchange="onToneSelected('luxury')" style="accent-color: var(--primary);">
+                  <span>✨ Luxury & Elite</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Sophisticated, refined, and prestigious.</div>
+              </label>
+
+              <label class="tone-card" style="display: flex; flex-direction: column; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: var(--text-main);">
+                  <input type="radio" name="toneRadio" value="casual" onchange="onToneSelected('casual')" style="accent-color: var(--primary);">
+                  <span>💬 Casual & Upbeat</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Modern, youthful, and conversational.</div>
+              </label>
+
+              <label class="tone-card" style="display: flex; flex-direction: column; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: var(--text-main);">
+                  <input type="radio" name="toneRadio" value="concise" onchange="onToneSelected('concise')" style="accent-color: var(--primary);">
+                  <span>⚡ Direct & Concise</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Short, direct, and straight to the point.</div>
+              </label>
+            </div>
+            <input type="hidden" id="cfgTonePreset" value="friendly">
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Fallback Response (When Knowledge Does Not Answer Question)</label>
-            <input type="text" id="cfgFallbackResponse" class="form-input">
+          <!-- 2. Custom Instructions & Business Goals -->
+          <div class="form-group" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" style="margin: 0; font-weight: 600;">🎯 Custom Instructions & Behavioral Rules (What the AI SHOULD Do)</label>
+              <button type="button" class="btn btn-secondary" onclick="insertExampleInstructions()" style="font-size: 11px; padding: 2px 8px;">Insert Example</button>
+            </div>
+            <textarea id="cfgCustomInstructions" class="form-textarea" style="min-height: 90px;" placeholder="e.g. Always ask the customer for their vehicle model and location before giving estimates. When anyone asks about travel packages, ask for their preferred travel dates. Always encourage booking a free consultation call."></textarea>
+            <div class="form-hint">Tell the AI specific objectives, questions to ask customers, or business workflows it should proactively follow.</div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Human Takeover Trigger Keywords (Comma-Separated)</label>
-            <input type="text" id="cfgHumanTakeoverKeywords" class="form-input" placeholder="human, agent, attendant, atendente, humano">
+          <!-- 3. Strict Restrictions & Guardrails (What the AI Must NEVER Do) -->
+          <div class="form-group" style="margin-bottom: 20px; padding: 16px; background: rgba(239, 68, 68, 0.04); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" style="margin: 0; font-weight: 700; color: #f87171; display: flex; align-items: center; gap: 6px;">
+                <span>⛔</span> Strict Business Restrictions (What the AI Must NEVER Do)
+              </label>
+              <button type="button" class="btn btn-secondary" onclick="insertExampleRestrictions()" style="font-size: 11px; padding: 2px 8px;">Insert Example</button>
+            </div>
+            <textarea id="cfgCustomRestrictions" class="form-textarea" style="min-height: 90px; border-color: rgba(239, 68, 68, 0.35);" placeholder="e.g. Never offer discounts above 10%. Do not promise same-day delivery after 2:00 PM. Never share personal mobile numbers of company staff. Do not accept payments via personal bank accounts."></textarea>
+            <div class="form-hint" style="color: #fca5a5;">The AI will treat these as unbreakable boundaries and will strictly refuse requests that violate them.</div>
+          </div>
+
+          <!-- 4. Advanced Prompt Override (Expandable Accordion) -->
+          <details style="margin-top: 14px; background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 8px; padding: 12px 16px;">
+            <summary style="font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; user-select: none;">
+              ⚙️ Advanced: Additional System Instructions & Prompt Override
+            </summary>
+            <div style="margin-top: 12px;">
+              <div class="form-group">
+                <label class="form-label">Additional Raw System Prompt</label>
+                <textarea id="cfgSystemPrompt" class="form-textarea" style="min-height: 100px; font-family: monospace; font-size: 12px;"></textarea>
+                <div class="form-hint">For advanced users who want to append custom raw prompt directives. The knowledge base, tone rules, and core guidelines are merged automatically.</div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Fallback Response (When Information is Missing)</label>
+                <input type="text" id="cfgFallbackResponse" class="form-input">
+              </div>
+            </div>
+          </details>
+
+          <div class="form-group" style="margin-top: 20px;">
+            <label class="form-label">Human Takeover Trigger Keywords (Optional Custom Phrases)</label>
+            <input type="text" id="cfgHumanTakeoverKeywords" class="form-input" placeholder="connect me, transfer me, human agent, speak with agent, live support">
             <div class="form-hint">When a customer mentions any of these terms, the bot stops replying and flags the chat for human attention.</div>
           </div>
+        </div>
 
           <div style="margin-top: 24px; padding: 18px 20px; background: rgba(245, 158, 11, 0.04); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; margin-bottom: 20px;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
@@ -3110,9 +3195,31 @@
         document.getElementById('cfgHumanTakeoverKeywords').value = cfg.humanTakeoverKeywords || '';
         document.getElementById('cfgNotifyOnTakeover').checked = cfg.notifyOnTakeover !== false;
         document.getElementById('cfgAdminNotificationPhone').value = cfg.adminNotificationPhone || '';
+
+        // Custom Behavior & Tone
+        const tone = cfg.tonePreset || 'friendly';
+        document.getElementById('cfgTonePreset').value = tone;
+        const toneRadio = document.querySelector(`input[name="toneRadio"][value="${tone}"]`);
+        if (toneRadio) toneRadio.checked = true;
+        document.getElementById('cfgCustomInstructions').value = cfg.customInstructions || '';
+        document.getElementById('cfgCustomRestrictions').value = cfg.customRestrictions || '';
       } catch (err) {
         showToast(`Failed to load settings: ${err.message}`, true);
       }
+    }
+
+    function onToneSelected(val) {
+      document.getElementById('cfgTonePreset').value = val;
+    }
+
+    function insertExampleInstructions() {
+      const el = document.getElementById('cfgCustomInstructions');
+      el.value = "1. Always greet the customer warmly and ask for their name and location.\n2. Before recommending travel or service packages, ask for their preferred dates and group size.\n3. Proactively mention that consultations and initial estimates are completely free.";
+    }
+
+    function insertExampleRestrictions() {
+      const el = document.getElementById('cfgCustomRestrictions');
+      el.value = "1. Never quote discounts exceeding 10% without managerial approval.\n2. Do not promise same-day delivery or emergency callouts after 3:00 PM.\n3. Never share personal mobile numbers or personal bank accounts of company staff.\n4. Strictly refuse abusive or inappropriate language politely.";
     }
 
     function onProviderChanged() {
@@ -3189,6 +3296,9 @@
         apiKey: document.getElementById('cfgApiKey').value,
         temperature: parseFloat(document.getElementById('cfgTemperature').value),
         maxTokens: parseInt(document.getElementById('cfgMaxTokens').value),
+        tonePreset: document.getElementById('cfgTonePreset').value || 'friendly',
+        customInstructions: document.getElementById('cfgCustomInstructions').value,
+        customRestrictions: document.getElementById('cfgCustomRestrictions').value,
         systemPrompt: document.getElementById('cfgSystemPrompt').value,
         fallbackResponse: document.getElementById('cfgFallbackResponse').value,
         humanTakeoverKeywords: document.getElementById('cfgHumanTakeoverKeywords').value,

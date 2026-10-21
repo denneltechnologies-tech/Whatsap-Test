@@ -775,6 +775,9 @@ model AiAssistantConfig {
   businessDescription   String?   @db.Text
   businessHours         String?   @db.Text
   supportedLanguages    String?   @default("en, es, pt") @db.VarChar(100)
+  tonePreset            String?   @default("friendly") @db.VarChar(50)
+  customInstructions    String?   @db.Text
+  customRestrictions    String?   @db.Text
   systemPrompt          String?   @db.Text
   fallbackResponse      String?   @db.Text
   humanTakeoverKeywords String?   @default("human, agent, attendant, atendente, humano, support") @db.VarChar(500)

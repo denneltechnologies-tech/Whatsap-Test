@@ -48,6 +48,9 @@ export class CustomAiService {
           businessDescription: 'Providing quality products and excellent customer care.',
           businessHours: 'Monday - Friday: 9:00 AM - 6:00 PM',
           supportedLanguages: 'en, es, pt',
+          tonePreset: 'friendly',
+          customInstructions: null,
+          customRestrictions: null,
           systemPrompt:
             env?.SYSTEM_PROMPT ||
             'You are a friendly, helpful team member. Answer customer questions politely and warmly based on our business details. Never invent prices or policies. If you do not have an answer to a question, say you don\'t have that information right now and offer to connect them to a colleague.',
@@ -511,12 +514,40 @@ export class CustomAiService {
     if (config.businessHours) businessBlock += `Opening Hours: ${config.businessHours}\n`;
     if (config.supportedLanguages) businessBlock += `Supported Languages: ${config.supportedLanguages}\n`;
 
+    // Tone of voice mapping
+    const toneMap: Record<string, string> = {
+      friendly: 'Warm, approachable, empathetic, and friendly.',
+      professional: 'Polished, corporate, courteous, and highly professional.',
+      luxury: 'Sophisticated, elegant, refined, and prestigious.',
+      casual: 'Relaxed, modern, upbeat, and conversational.',
+      concise: 'Direct, brief, efficient, and straight to the point.',
+    };
+
+    const selectedTone =
+      toneMap[(config as any).tonePreset || 'friendly'] ||
+      (config as any).tonePreset ||
+      'Warm, friendly, and professional.';
+
+    let customInstructionsBlock = '';
+    if ((config as any).customInstructions && (config as any).customInstructions.trim()) {
+      customInstructionsBlock = `### BUSINESS CUSTOM INSTRUCTIONS & GOALS:\n${(config as any).customInstructions.trim()}\n`;
+    }
+
+    let customRestrictionsBlock = '';
+    if ((config as any).customRestrictions && (config as any).customRestrictions.trim()) {
+      customRestrictionsBlock = `### STRICT BUSINESS RESTRICTIONS & GUARDRAILS (DO NOT VIOLATE):\n${(config as any).customRestrictions.trim()}\n`;
+    }
+
     const systemPromptContent = [
-      `You are a friendly, professional team member representing ${config.businessName || 'our business'}.`,
-      config.systemPrompt || '',
+      `You are a dedicated team member representing ${config.businessName || 'our business'}.`,
+      `Tone of Voice: ${selectedTone}`,
       '',
       businessBlock,
-      ragContext ? `Information about our services:\n${ragContext}` : '',
+      ragContext ? `Information about our services and policies:\n${ragContext}` : '',
+      '',
+      customInstructionsBlock,
+      customRestrictionsBlock,
+      config.systemPrompt ? `### ADDITIONAL SYSTEM NOTES:\n${config.systemPrompt}\n` : '',
       '',
       `Customer Name: ${pushName || 'Valued Customer'}`,
       '',
