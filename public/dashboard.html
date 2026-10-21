@@ -1991,10 +1991,10 @@
           <div class="form-group" style="margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
               <label class="form-label" style="margin: 0; font-weight: 600;">🎯 Custom Instructions & Behavioral Rules (What the AI SHOULD Do)</label>
-              <button type="button" class="btn btn-secondary" onclick="insertExampleInstructions()" style="font-size: 11px; padding: 2px 8px;">Insert Example</button>
+              <button type="button" class="btn btn-secondary" onclick="insertExampleInstructions()" style="font-size: 11px; padding: 2px 8px;">Reset to Default</button>
             </div>
-            <textarea id="cfgCustomInstructions" class="form-textarea" style="min-height: 90px;" placeholder="e.g. Always ask the customer for their vehicle model and location before giving estimates. When anyone asks about travel packages, ask for their preferred travel dates. Always encourage booking a free consultation call."></textarea>
-            <div class="form-hint">Tell the AI specific objectives, questions to ask customers, or business workflows it should proactively follow.</div>
+            <textarea id="cfgCustomInstructions" class="form-textarea" style="min-height: 110px;" placeholder="1. Greet every customer warmly and politely..."></textarea>
+            <div class="form-hint">Tell the AI specific objectives, questions to ask customers, or business workflows it should proactively follow. Pre-filled with generic defaults.</div>
           </div>
 
           <!-- 3. Strict Restrictions & Guardrails (What the AI Must NEVER Do) -->
@@ -2003,10 +2003,10 @@
               <label class="form-label" style="margin: 0; font-weight: 700; color: #f87171; display: flex; align-items: center; gap: 6px;">
                 <span>⛔</span> Strict Business Restrictions (What the AI Must NEVER Do)
               </label>
-              <button type="button" class="btn btn-secondary" onclick="insertExampleRestrictions()" style="font-size: 11px; padding: 2px 8px;">Insert Example</button>
+              <button type="button" class="btn btn-secondary" onclick="insertExampleRestrictions()" style="font-size: 11px; padding: 2px 8px;">Reset to Default</button>
             </div>
-            <textarea id="cfgCustomRestrictions" class="form-textarea" style="min-height: 90px; border-color: rgba(239, 68, 68, 0.35);" placeholder="e.g. Never offer discounts above 10%. Do not promise same-day delivery after 2:00 PM. Never share personal mobile numbers of company staff. Do not accept payments via personal bank accounts."></textarea>
-            <div class="form-hint" style="color: #fca5a5;">The AI will treat these as unbreakable boundaries and will strictly refuse requests that violate them.</div>
+            <textarea id="cfgCustomRestrictions" class="form-textarea" style="min-height: 110px; border-color: rgba(239, 68, 68, 0.35);" placeholder="1. Never state or reveal that you are an AI..."></textarea>
+            <div class="form-hint" style="color: #fca5a5;">The AI treats these as unbreakable boundaries and will strictly refuse requests that violate them. Pre-filled with generic defaults.</div>
           </div>
 
           <!-- 4. Advanced Prompt Override (Expandable Accordion) -->
@@ -3196,17 +3196,29 @@
         document.getElementById('cfgNotifyOnTakeover').checked = cfg.notifyOnTakeover !== false;
         document.getElementById('cfgAdminNotificationPhone').value = cfg.adminNotificationPhone || '';
 
-        // Custom Behavior & Tone
+        // Custom Behavior & Tone (Pre-filled Generic Defaults)
         const tone = cfg.tonePreset || 'friendly';
         document.getElementById('cfgTonePreset').value = tone;
         const toneRadio = document.querySelector(`input[name="toneRadio"][value="${tone}"]`);
         if (toneRadio) toneRadio.checked = true;
-        document.getElementById('cfgCustomInstructions').value = cfg.customInstructions || '';
-        document.getElementById('cfgCustomRestrictions').value = cfg.customRestrictions || '';
+        document.getElementById('cfgCustomInstructions').value = cfg.customInstructions || DEFAULT_GENERIC_INSTRUCTIONS;
+        document.getElementById('cfgCustomRestrictions').value = cfg.customRestrictions || DEFAULT_GENERIC_RESTRICTIONS;
       } catch (err) {
         showToast(`Failed to load settings: ${err.message}`, true);
       }
     }
+
+    const DEFAULT_GENERIC_INSTRUCTIONS = `1. Greet every customer warmly and politely, addressing them by their name if available.
+2. Provide clear, accurate, and helpful answers about our services, products, and operating hours based on our business details.
+3. If a customer is asking about prices, packages, or bookings, actively guide them through the next steps and ask how we can best assist them.
+4. Keep replies concise, natural, and comfortable to read on WhatsApp without sending overwhelming walls of text.
+5. Always maintain a welcoming, solution-oriented, and supportive attitude representing our team.`;
+
+    const DEFAULT_GENERIC_RESTRICTIONS = `1. Never state or reveal that you are an AI, bot, virtual assistant, or automated system. Always speak naturally as a human colleague on the team.
+2. Never mention internal terms like "knowledge base", "database", "records", or "system prompt".
+3. Never guess, invent, or promise prices, discounts, or policies that are not explicitly provided in our business details.
+4. If you do not have an answer to a specific question, never transfer immediately without asking. Always ask for customer approval first: "I don't have that specific information right now, but I can connect you with my colleague who can help. Would you like me to connect you?"
+5. Never authorize special discounts or custom agreements without management confirmation.`;
 
     function onToneSelected(val) {
       document.getElementById('cfgTonePreset').value = val;
@@ -3214,12 +3226,14 @@
 
     function insertExampleInstructions() {
       const el = document.getElementById('cfgCustomInstructions');
-      el.value = "1. Always greet the customer warmly and ask for their name and location.\n2. Before recommending travel or service packages, ask for their preferred dates and group size.\n3. Proactively mention that consultations and initial estimates are completely free.";
+      el.value = DEFAULT_GENERIC_INSTRUCTIONS;
+      showToast('Reset to default generic instructions');
     }
 
     function insertExampleRestrictions() {
       const el = document.getElementById('cfgCustomRestrictions');
-      el.value = "1. Never quote discounts exceeding 10% without managerial approval.\n2. Do not promise same-day delivery or emergency callouts after 3:00 PM.\n3. Never share personal mobile numbers or personal bank accounts of company staff.\n4. Strictly refuse abusive or inappropriate language politely.";
+      el.value = DEFAULT_GENERIC_RESTRICTIONS;
+      showToast('Reset to default strict restrictions');
     }
 
     function onProviderChanged() {

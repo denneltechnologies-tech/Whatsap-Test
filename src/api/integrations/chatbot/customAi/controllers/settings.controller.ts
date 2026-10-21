@@ -2,7 +2,7 @@ import { PrismaRepository } from '@api/repository/repository.service';
 import { Logger } from '@config/logger.config';
 import { BadRequestException, NotFoundException } from '@exceptions';
 
-import { CustomAiService } from '../services/customAi.service';
+import { CustomAiService, DEFAULT_CUSTOM_INSTRUCTIONS, DEFAULT_CUSTOM_RESTRICTIONS } from '../services/customAi.service';
 import { normalizeWhatsAppNumber } from '../utils/phone.util';
 
 export class SettingsController {
@@ -34,9 +34,11 @@ export class SettingsController {
     const instanceId = await this.getInstanceId(instanceName);
     const config = await this.customAiService.getOrCreateConfig(instanceId);
 
-    // Mask sensitive keys for frontend security
+    // Mask sensitive keys for frontend security & supply generic defaults if not set
     const maskedConfig = {
       ...config,
+      customInstructions: config.customInstructions || DEFAULT_CUSTOM_INSTRUCTIONS,
+      customRestrictions: config.customRestrictions || DEFAULT_CUSTOM_RESTRICTIONS,
       apiKey: config.apiKey ? `${config.apiKey.substring(0, 4)}...${config.apiKey.slice(-4)}` : '',
       embeddingApiKey: config.embeddingApiKey ? `${config.embeddingApiKey.substring(0, 4)}...${config.embeddingApiKey.slice(-4)}` : '',
     };

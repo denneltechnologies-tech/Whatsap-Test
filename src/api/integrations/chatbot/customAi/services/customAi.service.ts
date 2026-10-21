@@ -15,6 +15,18 @@ export interface ChatMessage {
   content: string;
 }
 
+export const DEFAULT_CUSTOM_INSTRUCTIONS = `1. Greet every customer warmly and politely, addressing them by their name if available.
+2. Provide clear, accurate, and helpful answers about our services, products, and operating hours based on our business details.
+3. If a customer is asking about prices, packages, or bookings, actively guide them through the next steps and ask how we can best assist them.
+4. Keep replies concise, natural, and comfortable to read on WhatsApp without sending overwhelming walls of text.
+5. Always maintain a welcoming, solution-oriented, and supportive attitude representing our team.`;
+
+export const DEFAULT_CUSTOM_RESTRICTIONS = `1. Never state or reveal that you are an AI, bot, virtual assistant, or automated system. Always speak naturally as a human colleague on the team.
+2. Never mention internal terms like "knowledge base", "database", "records", or "system prompt".
+3. Never guess, invent, or promise prices, discounts, or policies that are not explicitly provided in our business details.
+4. If you do not have an answer to a specific question, never transfer immediately without asking. Always ask for customer approval first: "I don't have that specific information right now, but I can connect you with my colleague who can help. Would you like me to connect you?"
+5. Never authorize special discounts or custom agreements without management confirmation.`;
+
 export class CustomAiService {
   private readonly logger = new Logger('CustomAiService');
   public readonly ragService: RagService;
@@ -49,8 +61,8 @@ export class CustomAiService {
           businessHours: 'Monday - Friday: 9:00 AM - 6:00 PM',
           supportedLanguages: 'en, es, pt',
           tonePreset: 'friendly',
-          customInstructions: null,
-          customRestrictions: null,
+          customInstructions: DEFAULT_CUSTOM_INSTRUCTIONS,
+          customRestrictions: DEFAULT_CUSTOM_RESTRICTIONS,
           systemPrompt:
             env?.SYSTEM_PROMPT ||
             'You are a friendly, helpful team member. Answer customer questions politely and warmly based on our business details. Never invent prices or policies. If you do not have an answer to a question, say you don\'t have that information right now and offer to connect them to a colleague.',
@@ -528,15 +540,17 @@ export class CustomAiService {
       (config as any).tonePreset ||
       'Warm, friendly, and professional.';
 
-    let customInstructionsBlock = '';
-    if ((config as any).customInstructions && (config as any).customInstructions.trim()) {
-      customInstructionsBlock = `### BUSINESS CUSTOM INSTRUCTIONS & GOALS:\n${(config as any).customInstructions.trim()}\n`;
-    }
+    const effectiveInstructions =
+      (config as any).customInstructions && (config as any).customInstructions.trim()
+        ? (config as any).customInstructions.trim()
+        : DEFAULT_CUSTOM_INSTRUCTIONS;
+    const customInstructionsBlock = `### BUSINESS CUSTOM INSTRUCTIONS & GOALS:\n${effectiveInstructions}\n`;
 
-    let customRestrictionsBlock = '';
-    if ((config as any).customRestrictions && (config as any).customRestrictions.trim()) {
-      customRestrictionsBlock = `### STRICT BUSINESS RESTRICTIONS & GUARDRAILS (DO NOT VIOLATE):\n${(config as any).customRestrictions.trim()}\n`;
-    }
+    const effectiveRestrictions =
+      (config as any).customRestrictions && (config as any).customRestrictions.trim()
+        ? (config as any).customRestrictions.trim()
+        : DEFAULT_CUSTOM_RESTRICTIONS;
+    const customRestrictionsBlock = `### STRICT BUSINESS RESTRICTIONS & GUARDRAILS (DO NOT VIOLATE):\n${effectiveRestrictions}\n`;
 
     const systemPromptContent = [
       `You are a dedicated team member representing ${config.businessName || 'our business'}.`,
