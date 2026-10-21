@@ -967,10 +967,11 @@
               <label class="form-label">Provider</label>
               <select id="cfgProvider" class="form-select" onchange="onProviderChanged()">
                 <option value="openai">OpenAI</option>
-                <option value="openrouter">OpenRouter</option>
-                <option value="groq">Groq</option>
-                <option value="ollama">Ollama (Local VPS)</option>
+                <option value="gemini">Google Gemini (Free Tier)</option>
+                <option value="groq">Groq - LLaMA 3 (100% Free)</option>
                 <option value="deepseek">DeepSeek</option>
+                <option value="openrouter">OpenRouter (Free & Paid)</option>
+                <option value="ollama">Ollama (Local VPS - Free)</option>
                 <option value="custom">Custom OpenAI-Compatible</option>
               </select>
             </div>
@@ -1502,18 +1503,21 @@
       if (p === 'openai') {
         urlInput.value = 'https://api.openai.com/v1';
         modelInput.value = 'gpt-4o-mini';
-      } else if (p === 'openrouter') {
-        urlInput.value = 'https://openrouter.ai/api/v1';
-        modelInput.value = 'anthropic/claude-3.5-sonnet';
+      } else if (p === 'gemini') {
+        urlInput.value = 'https://generativelanguage.googleapis.com/v1beta/openai';
+        modelInput.value = 'gemini-1.5-flash';
       } else if (p === 'groq') {
         urlInput.value = 'https://api.groq.com/openai/v1';
-        modelInput.value = 'llama-3.3-70b-versatile';
-      } else if (p === 'ollama') {
-        urlInput.value = 'http://localhost:11434/v1';
-        modelInput.value = 'llama3';
+        modelInput.value = 'openai/gpt-oss-120b';
       } else if (p === 'deepseek') {
         urlInput.value = 'https://api.deepseek.com/v1';
         modelInput.value = 'deepseek-chat';
+      } else if (p === 'openrouter') {
+        urlInput.value = 'https://openrouter.ai/api/v1';
+        modelInput.value = 'anthropic/claude-3.5-sonnet';
+      } else if (p === 'ollama') {
+        urlInput.value = 'http://localhost:11434/v1';
+        modelInput.value = 'llama3';
       }
     }
 

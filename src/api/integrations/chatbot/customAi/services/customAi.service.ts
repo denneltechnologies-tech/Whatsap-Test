@@ -336,7 +336,8 @@ export class CustomAiService {
       'Instructions:',
       '- Respond politely, concisely, and warmly in the language used by the customer.',
       '- Keep responses clear, readable on a phone screen, and directly address the question.',
-      '- If the question cannot be answered using the Business Knowledge Base above, do not invent answers. State that you do not have that information and offer human assistance.',
+      '- If the customer greets you (e.g. "hello", "hi", "good morning"), welcome them warmly to the business and ask how you can assist them.',
+      '- If a specific business question cannot be answered using the Business Knowledge Base above, do not invent answers. State that you do not have that information and offer human assistance.',
     ].join('\n');
 
     // Retrieve previous conversation context

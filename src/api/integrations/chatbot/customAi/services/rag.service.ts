@@ -244,25 +244,37 @@ export class RagService {
 
         if (chunkEmbedding && Array.isArray(chunkEmbedding) && chunkEmbedding.length === queryEmbedding.length) {
           score = this.cosineSimilarity(queryEmbedding, chunkEmbedding);
-        } else {
-          // Keyword overlap fallback if embeddings differ in dimensions
-          score = this.keywordOverlapScore(query, chunk.content);
         }
 
-        if (score >= minScore) {
-          scoredChunks.push({
-            id: chunk.id,
-            documentId: chunk.documentId,
-            documentTitle: chunk.Document?.title || 'Document',
-            content: chunk.content,
-            score,
-          });
-        }
+        const kwScore = this.keywordOverlapScore(query, chunk.content);
+        // Hybrid score combines semantic vector score with keyword match
+        const finalScore = Math.max(score, kwScore);
+
+        scoredChunks.push({
+          id: chunk.id,
+          documentId: chunk.documentId,
+          documentTitle: chunk.Document?.title || 'Document',
+          content: chunk.content,
+          score: finalScore,
+        });
       }
 
-      // 4. Sort descending by score and take topK
+      // 4. Sort descending by score
       scoredChunks.sort((a, b) => b.score - a.score);
-      return scoredChunks.slice(0, topK);
+
+      // If top chunks meet threshold, return them
+      const passing = scoredChunks.filter((c) => c.score >= minScore);
+      if (passing.length > 0) {
+        return passing.slice(0, topK);
+      }
+
+      // If query is broad (e.g. 'what are your services', 'about') and nothing cleared minScore,
+      // return the best available chunks so the AI has real business facts to ground its response
+      if (scoredChunks.length > 0) {
+        return scoredChunks.slice(0, topK);
+      }
+
+      return [];
     } catch (error: any) {
       this.logger.error(`Error retrieving knowledge chunks: ${error.message}`);
       return [];
