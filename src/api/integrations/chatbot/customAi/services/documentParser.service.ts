@@ -3,6 +3,8 @@ import axios from 'axios';
 import dns from 'dns';
 import net from 'net';
 
+import { cleanTitle, decodeHtmlEntities, sanitizeUnicode } from '../utils/unicode.util';
+
 export interface ParsedDocument {
   title: string;
   content: string;
@@ -91,9 +93,11 @@ export class DocumentParserService {
    * Parses uploaded text or markdown buffer
    */
   public parseTextOrMarkdown(buffer: Buffer, filename: string): ParsedDocument {
-    const content = buffer.toString('utf-8').trim();
+    const rawContent = buffer.toString('utf-8');
+    const content = sanitizeUnicode(rawContent).trim();
+    const title = cleanTitle(filename.replace(/\.[^/.]+$/, ''));
     return {
-      title: filename.replace(/\.[^/.]+$/, ''),
+      title,
       content,
       fileType: filename.endsWith('.md') ? 'md' : 'txt',
       metadata: { length: content.length, filename },
@@ -104,15 +108,16 @@ export class DocumentParserService {
    * Parses PDF file buffer
    */
   public async parsePdf(buffer: Buffer, filename: string): Promise<ParsedDocument> {
+    const title = cleanTitle(filename.replace(/\.[^/.]+$/, ''));
     try {
       // Dynamic import to handle optional dependency gracefully
       const pdfParseModule = await import('pdf-parse');
       const pdfParse = (pdfParseModule as any).default || pdfParseModule;
       const data = await pdfParse(buffer);
-      const content = data.text ? data.text.trim() : '';
+      const content = sanitizeUnicode(data.text ? data.text.trim() : '');
 
       return {
-        title: filename.replace(/\.[^/.]+$/, ''),
+        title,
         content,
         fileType: 'pdf',
         metadata: {
@@ -125,9 +130,10 @@ export class DocumentParserService {
       this.logger.error(`Error parsing PDF ${filename}: ${error.message}`);
       // Fallback: extract visible ASCII text from buffer
       const text = buffer.toString('utf-8').replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+      const content = sanitizeUnicode(text.length > 50 ? text : `[PDF content could not be fully parsed: ${error.message}]`);
       return {
-        title: filename.replace(/\.[^/.]+$/, ''),
-        content: text.length > 50 ? text : `[PDF content could not be fully parsed: ${error.message}]`,
+        title,
+        content,
         fileType: 'pdf',
         metadata: { filename, error: error.message },
       };
@@ -138,14 +144,15 @@ export class DocumentParserService {
    * Parses Word DOCX file buffer
    */
   public async parseDocx(buffer: Buffer, filename: string): Promise<ParsedDocument> {
+    const title = cleanTitle(filename.replace(/\.[^/.]+$/, ''));
     try {
       const mammothModule = await import('mammoth');
       const mammoth = (mammothModule as any).default || mammothModule;
       const result = await mammoth.extractRawText({ buffer });
-      const content = result.value ? result.value.trim() : '';
+      const content = sanitizeUnicode(result.value ? result.value.trim() : '');
 
       return {
-        title: filename.replace(/\.[^/.]+$/, ''),
+        title,
         content,
         fileType: 'docx',
         metadata: {
@@ -178,9 +185,10 @@ export class DocumentParserService {
       const html = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
       const text = this.stripHtml(html);
 
-      // Extract page title
+      // Extract and clean page title
       const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-      const title = titleMatch ? titleMatch[1].trim() : validatedUrl.hostname;
+      const rawTitle = titleMatch ? titleMatch[1].trim() : validatedUrl.hostname;
+      const title = cleanTitle(rawTitle);
 
       return {
         title,
@@ -199,10 +207,10 @@ export class DocumentParserService {
   }
 
   /**
-   * Strips HTML tags, styles, scripts, and normalizes text
+   * Strips HTML tags, styles, scripts, decodes entities, and normalizes text
    */
   public stripHtml(html: string): string {
-    return html
+    const stripped = html
       // Remove head, script, style, noscript tags and their contents
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
       .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
@@ -212,18 +220,18 @@ export class DocumentParserService {
       .replace(/<\/(p|div|h[1-6]|li|tr|section|article)>/gi, '\n')
       .replace(/<br\s*\/?>/gi, '\n')
       // Remove all remaining HTML tags
-      .replace(/<[^>]+>/g, ' ')
-      // Decode basic HTML entities
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&amp;/gi, '&')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
-      .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'")
-      // Clean up excess whitespace
+      .replace(/<[^>]+>/g, ' ');
+
+    // Decode HTML entities
+    const decoded = decodeHtmlEntities(stripped);
+
+    // Clean up excess whitespace and sanitize Unicode
+    const normalized = decoded
       .replace(/[ \t]+/g, ' ')
       .replace(/\n\s*\n+/g, '\n\n')
       .trim();
+
+    return sanitizeUnicode(normalized);
   }
 }
 

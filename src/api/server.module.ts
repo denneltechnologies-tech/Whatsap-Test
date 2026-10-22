@@ -147,7 +147,7 @@ export const evoaiController = new EvoaiController(evoaiService, prismaRepositor
 // Custom AI Platform & Knowledge Base
 export const customAiService = new CustomAiService(waMonitor, prismaRepository, configService);
 export const customAiController = new CustomAiController(customAiService, prismaRepository, waMonitor, configService);
-export const knowledgeController = new KnowledgeController(prismaRepository, customAiService.ragService);
+export const knowledgeController = new KnowledgeController(prismaRepository, customAiService.ragService, customAiService);
 export const aiSettingsController = new AiSettingsController(prismaRepository, customAiService);
 export const aiConversationController = new ConversationController(prismaRepository, customAiService);
 export const tenantController = new TenantController(prismaRepository, customAiService, configService, instanceController);

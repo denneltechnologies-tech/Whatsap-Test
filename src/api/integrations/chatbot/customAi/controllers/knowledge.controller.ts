@@ -2,8 +2,10 @@ import { PrismaRepository } from '@api/repository/repository.service';
 import { Logger } from '@config/logger.config';
 import { BadRequestException, NotFoundException } from '@exceptions';
 
+import { CustomAiService } from '../services/customAi.service';
 import { documentParserService } from '../services/documentParser.service';
 import { RagService } from '../services/rag.service';
+import { cleanTitle, sanitizeUnicode } from '../utils/unicode.util';
 
 export class KnowledgeController {
   private readonly logger = new Logger('KnowledgeController');
@@ -11,6 +13,7 @@ export class KnowledgeController {
   constructor(
     private readonly prismaRepository: PrismaRepository,
     private readonly ragService: RagService,
+    private readonly customAiService?: CustomAiService,
   ) {}
 
   /**
@@ -29,11 +32,21 @@ export class KnowledgeController {
 
   /**
    * Helper: Fetch assistant config to obtain embedding settings
+   * Auto-provisions default assistant configuration for new companies if not yet initialized
    */
   private async getEmbeddingSettings(instanceId: string) {
-    const config = await this.prismaRepository.aiAssistantConfig.findUnique({
+    let config = await this.prismaRepository.aiAssistantConfig.findUnique({
       where: { instanceId },
     });
+
+    if (!config && this.customAiService) {
+      try {
+        config = await this.customAiService.getOrCreateConfig(instanceId);
+      } catch (err: any) {
+        this.logger.warn(`Failed to auto-create assistant config for ${instanceId}: ${err.message}`);
+      }
+    }
+
     return {
       provider: config?.embeddingProvider,
       model: config?.embeddingModel,
@@ -93,22 +106,25 @@ export class KnowledgeController {
     }
 
     // 2. Create document record
+    const title = cleanTitle(parsed.title || file.originalname);
+    const content = sanitizeUnicode(parsed.content);
+
     const document = await (this.prismaRepository as any).knowledgeDocument.create({
       data: {
         instanceId,
-        title: parsed.title,
+        title,
         type: 'file',
         fileName: file.originalname,
         fileType: ext,
         fileSize: file.size,
-        content: parsed.content,
+        content,
         metadata: parsed.metadata,
         status: 'processing',
       },
     });
 
     // 3. Process chunks and embeddings asynchronously
-    this.indexDocument(document.id, instanceId, parsed.content).catch((err) => {
+    this.indexDocument(document.id, instanceId, content).catch((err) => {
       this.logger.error(`Error indexing document ${document.id}: ${err.message}`);
     });
 
@@ -124,8 +140,8 @@ export class KnowledgeController {
     }
 
     const instanceId = await this.getInstanceId(instanceName);
-    const title = data.title || `FAQ: ${data.question.substring(0, 50)}...`;
-    const content = `Question: ${data.question}\nAnswer: ${data.answer}`;
+    const title = cleanTitle(data.title || `FAQ: ${data.question.substring(0, 50)}...`);
+    const content = sanitizeUnicode(`Question: ${data.question}\nAnswer: ${data.answer}`);
 
     const document = await (this.prismaRepository as any).knowledgeDocument.create({
       data: {
@@ -133,7 +149,7 @@ export class KnowledgeController {
         title,
         type: 'faq',
         content,
-        metadata: { question: data.question, answer: data.answer },
+        metadata: { question: sanitizeUnicode(data.question), answer: sanitizeUnicode(data.answer) },
         status: 'processing',
       },
     });
@@ -157,20 +173,22 @@ export class KnowledgeController {
 
     // SSRF safe parse
     const parsed = await documentParserService.parseUrl(urlString);
+    const title = cleanTitle(parsed.title || urlString);
+    const content = sanitizeUnicode(parsed.content);
 
     const document = await (this.prismaRepository as any).knowledgeDocument.create({
       data: {
         instanceId,
-        title: parsed.title || urlString,
+        title,
         type: 'url',
         sourceUrl: urlString,
-        content: parsed.content,
+        content,
         metadata: parsed.metadata,
         status: 'processing',
       },
     });
 
-    this.indexDocument(document.id, instanceId, parsed.content).catch((err) => {
+    this.indexDocument(document.id, instanceId, content).catch((err) => {
       this.logger.error(`Error indexing URL ${document.id}: ${err.message}`);
     });
 
@@ -193,20 +211,22 @@ export class KnowledgeController {
     }
 
     const instanceId = await this.getInstanceId(instanceName);
+    const title = cleanTitle(`[Business ${data.category.toUpperCase()}] ${data.title}`);
+    const content = sanitizeUnicode(data.content);
 
     // Upsert or create
     const document = await (this.prismaRepository as any).knowledgeDocument.create({
       data: {
         instanceId,
-        title: `[Business ${data.category.toUpperCase()}] ${data.title}`,
+        title,
         type: 'business_info',
-        content: data.content,
+        content,
         metadata: { category: data.category },
         status: 'processing',
       },
     });
 
-    this.indexDocument(document.id, instanceId, data.content).catch((err) => {
+    this.indexDocument(document.id, instanceId, content).catch((err) => {
       this.logger.error(`Error indexing business info ${document.id}: ${err.message}`);
     });
 
@@ -223,7 +243,7 @@ export class KnowledgeController {
         where: { documentId },
       });
 
-      // 2. Chunk text
+      // 2. Chunk text with surrogate safety
       const chunks = this.ragService.chunkText(content);
       if (chunks.length === 0) {
         await (this.prismaRepository as any).knowledgeDocument.update({
@@ -233,13 +253,14 @@ export class KnowledgeController {
         return;
       }
 
-      // 3. Fetch embedding settings
+      // 3. Fetch embedding settings (auto-creates default assistant config if missing)
       const embSettings = await this.getEmbeddingSettings(instanceId);
 
       // 4. Generate embeddings and persist chunks
       for (const chunk of chunks) {
+        const sanitizedChunkContent = sanitizeUnicode(chunk.content);
         const embedding = await this.ragService.generateEmbedding(
-          chunk.content,
+          sanitizedChunkContent,
           embSettings.provider,
           embSettings.model,
           embSettings.apiUrl,
@@ -251,7 +272,7 @@ export class KnowledgeController {
             documentId,
             instanceId,
             chunkIndex: chunk.chunkIndex,
-            content: chunk.content,
+            content: sanitizedChunkContent,
             embedding,
             tokenCount: chunk.tokenCount,
           },
@@ -295,12 +316,19 @@ export class KnowledgeController {
       throw new NotFoundException('Document not found');
     }
 
+    const cleanDocTitle = cleanTitle(doc.title);
+    const cleanDocContent = sanitizeUnicode(doc.content);
+
     await (this.prismaRepository as any).knowledgeDocument.update({
       where: { id: documentId },
-      data: { status: 'processing' },
+      data: {
+        title: cleanDocTitle,
+        content: cleanDocContent,
+        status: 'processing',
+      },
     });
 
-    await this.indexDocument(documentId, instanceId, doc.content);
+    await this.indexDocument(documentId, instanceId, cleanDocContent);
 
     return { message: 'Document reprocessed successfully' };
   }

@@ -2,6 +2,8 @@ import { PrismaRepository } from '@api/repository/repository.service';
 import { Logger } from '@config/logger.config';
 import axios from 'axios';
 
+import { sanitizeUnicode } from '../utils/unicode.util';
+
 export interface Chunk {
   chunkIndex: number;
   content: string;
@@ -22,10 +24,10 @@ export class RagService {
   constructor(private readonly prismaRepository: PrismaRepository) {}
 
   /**
-   * Recursively splits text into chunks with overlap
+   * Recursively splits text into chunks with overlap while preserving Unicode surrogate pairs
    */
   public chunkText(text: string, chunkSize = 600, chunkOverlap = 100): Chunk[] {
-    const cleanText = text.replace(/\r\n/g, '\n').trim();
+    const cleanText = sanitizeUnicode(text.replace(/\r\n/g, '\n')).trim();
     if (!cleanText) return [];
 
     if (cleanText.length <= chunkSize) {
@@ -39,6 +41,14 @@ export class RagService {
     let chunkIndex = 0;
 
     while (start < cleanText.length) {
+      // Prevent start from splitting a surrogate pair (if start lands on low surrogate, move back 1)
+      if (start > 0 && start < cleanText.length) {
+        const code = cleanText.charCodeAt(start);
+        if (code >= 0xdc00 && code <= 0xdfff) {
+          start = Math.max(0, start - 1);
+        }
+      }
+
       let end = Math.min(start + chunkSize, cleanText.length);
 
       if (end < cleanText.length) {
@@ -54,7 +64,15 @@ export class RagService {
         }
       }
 
-      const chunkContent = cleanText.substring(start, end).trim();
+      // Prevent end from splitting a surrogate pair (if end - 1 is high surrogate, include low surrogate)
+      if (end > 0 && end < cleanText.length) {
+        const code = cleanText.charCodeAt(end - 1);
+        if (code >= 0xd800 && code <= 0xdbff) {
+          end = Math.min(cleanText.length, end + 1);
+        }
+      }
+
+      const chunkContent = sanitizeUnicode(cleanText.substring(start, end).trim());
       if (chunkContent.length > 20) {
         chunks.push({
           chunkIndex,
@@ -65,10 +83,17 @@ export class RagService {
       }
 
       // Advance with overlap
-      const nextStart = end - chunkOverlap;
+      let nextStart = end - chunkOverlap;
       if (nextStart <= start) {
         start = end;
       } else {
+        // Prevent nextStart from splitting a surrogate pair
+        if (nextStart < cleanText.length) {
+          const code = cleanText.charCodeAt(nextStart);
+          if (code >= 0xdc00 && code <= 0xdfff) {
+            nextStart = Math.max(0, nextStart - 1);
+          }
+        }
         start = nextStart;
       }
     }
@@ -90,8 +115,8 @@ export class RagService {
       return [];
     }
 
-    // Trim text to prevent token limit errors
-    const input = text.substring(0, 8000);
+    // Trim text and ensure valid Unicode encoding
+    const input = sanitizeUnicode(text.substring(0, 8000));
 
     // If an API key is provided, use the remote embedding provider
     if (apiKey && apiKey.trim() !== '') {
@@ -201,12 +226,13 @@ export class RagService {
       apiKey?: string;
     },
   ): Promise<RetrievedChunk[]> {
-    if (!query || query.trim() === '') return [];
+    const cleanQuery = sanitizeUnicode(query).trim();
+    if (!cleanQuery) return [];
 
     try {
       // 1. Generate query embedding
       const queryEmbedding = await this.generateEmbedding(
-        query,
+        cleanQuery,
         embeddingConfig?.provider,
         embeddingConfig?.model,
         embeddingConfig?.apiUrl,
