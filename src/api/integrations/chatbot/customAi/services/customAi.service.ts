@@ -30,6 +30,11 @@ export const DEFAULT_CUSTOM_RESTRICTIONS = `1. Never state or reveal that you ar
 export const DEFAULT_AUTO_RESUME_MESSAGE =
   "Thank you so much for your patience! My colleague is currently tied up assisting other clients, but I'm back here to help you in the meantime. What can I assist you with?";
 
+export const DEFAULT_PLATFORM_KEY = process.env.CUSTOM_AI_API_KEY || '';
+export const DEFAULT_PLATFORM_PROVIDER = process.env.CUSTOM_AI_PROVIDER || 'groq';
+export const DEFAULT_PLATFORM_MODEL = process.env.CUSTOM_AI_MODEL || 'openai/gpt-oss-120b';
+export const DEFAULT_PLATFORM_URL = process.env.CUSTOM_AI_API_URL || 'https://api.groq.com/openai/v1';
+
 export class CustomAiService {
   private readonly logger = new Logger('CustomAiService');
   public readonly ragService: RagService;
@@ -64,10 +69,36 @@ export class CustomAiService {
 
     if (!config) {
       const env = this.configService.get<CustomAiEnv>('CUSTOM_AI');
+
+      let defaultApiKey = env?.API_KEY || '';
+      let defaultProvider = env?.PROVIDER || 'groq';
+      let defaultModel = env?.MODEL || (defaultProvider === 'groq' ? 'openai/gpt-oss-120b' : 'gpt-4o-mini');
+      let defaultApiUrl =
+        env?.API_URL || (defaultProvider === 'groq' ? 'https://api.groq.com/openai/v1' : 'https://api.openai.com/v1');
+
+      if (!defaultApiKey) {
+        // Fallback: inherit active key from another configured assistant if available
+        const activeTemplate = await this.prismaRepository.aiAssistantConfig.findFirst({
+          where: { apiKey: { not: '' } },
+          select: { apiKey: true, provider: true, model: true, apiUrl: true },
+        });
+        if (activeTemplate?.apiKey) {
+          defaultApiKey = activeTemplate.apiKey;
+          defaultProvider = activeTemplate.provider || defaultProvider;
+          defaultModel = activeTemplate.model || defaultModel;
+          defaultApiUrl = activeTemplate.apiUrl || defaultApiUrl;
+        } else {
+          defaultApiKey = DEFAULT_PLATFORM_KEY;
+          defaultProvider = DEFAULT_PLATFORM_PROVIDER;
+          defaultModel = DEFAULT_PLATFORM_MODEL;
+          defaultApiUrl = DEFAULT_PLATFORM_URL;
+        }
+      }
+
       config = await this.prismaRepository.aiAssistantConfig.create({
         data: {
           instanceId,
-          enabled: env?.ENABLED ?? true,
+          enabled: env?.ENABLED !== false,
           assistantName: 'Customer Support AI',
           businessName: env?.BUSINESS_NAME || 'Our Business',
           businessDescription: 'Providing quality products and excellent customer care.',
@@ -86,16 +117,16 @@ export class CustomAiService {
           humanTakeoverKeywords: 'connect me, transfer me, human agent, speak with agent, live support',
           adminNotificationPhone: null,
           notifyOnTakeover: true,
-          provider: env?.PROVIDER || 'openai',
-          model: env?.MODEL || 'gpt-4o-mini',
-          apiUrl: env?.API_URL || 'https://api.openai.com/v1',
-          apiKey: env?.API_KEY || '',
+          provider: defaultProvider,
+          model: defaultModel,
+          apiUrl: defaultApiUrl,
+          apiKey: defaultApiKey,
           temperature: 0.3,
           maxTokens: 600,
           embeddingProvider: env?.EMBEDDING_PROVIDER || 'openai',
           embeddingModel: env?.EMBEDDING_MODEL || 'text-embedding-3-small',
           embeddingApiUrl: env?.EMBEDDING_API_URL || 'https://api.openai.com/v1',
-          embeddingApiKey: env?.EMBEDDING_API_KEY || env?.API_KEY || '',
+          embeddingApiKey: env?.EMBEDDING_API_KEY || defaultApiKey,
           ragTopK: 4,
           ragMinScore: 0.35,
           maxContextMessages: 8,
@@ -215,8 +246,24 @@ export class CustomAiService {
       return;
     }
 
-    // 3. Ignore empty text or media without text
-    if (!messageText || messageText.trim() === '') {
+    // 3. Clean message text (strip internal Evolution API media prefixes like imageMessage|id|caption)
+    let effectiveText = (messageText || '').trim();
+    if (
+      effectiveText.startsWith('imageMessage|') ||
+      effectiveText.startsWith('videoMessage|') ||
+      effectiveText.startsWith('documentMessage|') ||
+      effectiveText.startsWith('documentWithCaptionMessage|')
+    ) {
+      const parts = effectiveText.split('|');
+      if (parts.length >= 3 && parts[2]?.trim()) {
+        effectiveText = parts.slice(2).join('|').trim();
+      } else {
+        effectiveText = 'Customer shared a media/photo attachment with our team.';
+      }
+    }
+
+    // Ignore empty text
+    if (!effectiveText || effectiveText.trim() === '') {
       this.logger.debug(`Ignoring empty text message: ${messageId}`);
       return;
     }
@@ -271,12 +318,12 @@ export class CustomAiService {
         (/\b(connect|colleague|representative)\b/i.test(lastAssistantMsg) && /\?\s*$/.test(lastAssistantMsg.trim()));
 
       const isAffirmative =
-        /^(yes|yeah|yep|sure|please|ok|okay|yes\s+please|connect\s+me|agree|proceed|go\s+ahead)\b/i.test(messageText.trim()) ||
-        /\b(yes\s+please|please\s+connect|connect\s+me|i\s+agree|that\s+would\s+be\s+great)\b/i.test(messageText.trim());
-      const isNegative = /\b(no|nope|not\s+now|no\s+thanks|don't|dont|nevermind|it's\s+okay)\b/i.test(messageText.trim());
+        /^(yes|yeah|yep|sure|please|ok|okay|yes\s+please|connect\s+me|agree|proceed|go\s+ahead)\b/i.test(effectiveText.trim()) ||
+        /\b(yes\s+please|please\s+connect|connect\s+me|i\s+agree|that\s+would\s+be\s+great)\b/i.test(effectiveText.trim());
+      const isNegative = /\b(no|nope|not\s+now|no\s+thanks|don't|dont|nevermind|it's\s+okay)\b/i.test(effectiveText.trim());
 
       if (previousMsgOfferedHandoff && isAffirmative && !isNegative && convState.status !== 'human_takeover') {
-        this.logger.info(`Customer ${remoteJid} approved connection to colleague with '${messageText}'`);
+        this.logger.info(`Customer ${remoteJid} approved connection to colleague with '${effectiveText}'`);
         await this.prismaRepository.aiConversationState.update({
           where: { id: convState.id },
           data: {
@@ -296,7 +343,7 @@ export class CustomAiService {
           config,
           remoteJid,
           pushName,
-          messageText,
+          effectiveText,
           'Customer approved connection to colleague',
         );
 
@@ -306,7 +353,7 @@ export class CustomAiService {
           providerMessageId: messageId,
           direction: 'incoming',
           senderType: 'customer',
-          content: messageText,
+          content: effectiveText,
         });
 
         await this.logMessage({
@@ -322,7 +369,7 @@ export class CustomAiService {
       }
 
       // Check if takeover was triggered by customer explicit command
-      const requestedHuman = this.checkForHumanTakeoverTrigger(messageText, config.humanTakeoverKeywords);
+      const requestedHuman = this.checkForHumanTakeoverTrigger(effectiveText, config.humanTakeoverKeywords);
       if (requestedHuman && convState.status !== 'human_takeover') {
         this.logger.info(`Customer ${remoteJid} requested human takeover`);
         await this.prismaRepository.aiConversationState.update({
@@ -346,7 +393,7 @@ export class CustomAiService {
           config,
           remoteJid,
           pushName,
-          messageText,
+          effectiveText,
           'Customer requested human agent'
         );
 
@@ -356,7 +403,7 @@ export class CustomAiService {
           providerMessageId: messageId,
           direction: 'incoming',
           senderType: 'customer',
-          content: messageText,
+          content: effectiveText,
         });
 
         this.deduplicationService.markProcessed(messageId);
@@ -368,13 +415,17 @@ export class CustomAiService {
         const timeoutMinutes = (config as any).autoResumeMinutes ?? 10;
         const takeoverTime = (convState as any).takeoverAt ? new Date((convState as any).takeoverAt).getTime() : 0;
         const lastHumanTime = convState.lastHumanReplyAt ? new Date(convState.lastHumanReplyAt).getTime() : 0;
-        const noHumanReplied = lastHumanTime < takeoverTime;
+        
+        // Auto-resume if timeoutMinutes > 0 and no human activity occurred for timeoutMinutes,
+        // OR if timestamps were missing/zero (unblocks stuck orphaned takeover states)
+        const lastHumanActivity = Math.max(lastHumanTime, takeoverTime);
         const timeoutReached =
-          timeoutMinutes > 0 && takeoverTime > 0 && Date.now() - takeoverTime >= timeoutMinutes * 60 * 1000;
+          timeoutMinutes > 0 &&
+          (lastHumanActivity === 0 || Date.now() - lastHumanActivity >= timeoutMinutes * 60 * 1000);
 
-        if (noHumanReplied && timeoutReached) {
+        if (timeoutReached) {
           this.logger.info(
-            `Auto-resuming AI for ${remoteJid}: customer sent a message and human has not replied within ${timeoutMinutes}m`
+            `Auto-resuming AI for ${remoteJid}: customer sent a message and no human activity occurred for ${timeoutMinutes}m`
           );
           convState = await this.prismaRepository.aiConversationState.update({
             where: { id: convState.id },
@@ -404,7 +455,7 @@ export class CustomAiService {
             providerMessageId: messageId,
             direction: 'incoming',
             senderType: 'customer',
-            content: messageText,
+            content: effectiveText,
           });
           this.deduplicationService.markProcessed(messageId);
           return;
@@ -417,7 +468,7 @@ export class CustomAiService {
           providerMessageId: messageId,
           direction: 'incoming',
           senderType: 'customer',
-          content: messageText,
+          content: effectiveText,
         });
         this.deduplicationService.markProcessed(messageId);
         return;
@@ -430,13 +481,13 @@ export class CustomAiService {
         providerMessageId: messageId,
         direction: 'incoming',
         senderType: 'customer',
-        content: messageText,
+        content: effectiveText,
       });
 
       // 8. Retrieve relevant business knowledge (RAG)
       const retrievedChunks = await this.ragService.retrieveRelevantChunks(
         instanceId,
-        messageText,
+        effectiveText,
         config.ragTopK || 4,
         config.ragMinScore || 0.35,
         {
@@ -449,7 +500,7 @@ export class CustomAiService {
 
       // 9. Generate AI Response
       const startTime = Date.now();
-      const aiResponse = await this.generateAiResponse(config, remoteJid, messageText, pushName, retrievedChunks);
+      const aiResponse = await this.generateAiResponse(config, remoteJid, effectiveText, pushName, retrievedChunks);
       const latencyMs = Date.now() - startTime;
 
       // Check if AI requested human takeover or promised a handoff
@@ -502,7 +553,7 @@ export class CustomAiService {
           config,
           remoteJid,
           pushName,
-          messageText,
+          effectiveText,
           'Customer connected to colleague / live representative',
         );
       } else {
@@ -536,6 +587,9 @@ export class CustomAiService {
           where: { id: convState.id },
           data: {
             status: 'human_takeover',
+            takeoverAt: convState.takeoverAt || new Date(),
+            takeoverReason: convState.takeoverReason || 'Direct human WhatsApp reply',
+            needsHumanAttention: true,
             lastHumanReplyAt: new Date(),
             humanReplyCount: { increment: 1 },
           },
@@ -564,9 +618,37 @@ export class CustomAiService {
     pushName?: string,
     chunks: any[] = [],
   ): Promise<{ reply: string; tokensUsed?: number }> {
-    const apiKey = config.apiKey || this.configService.get<CustomAiEnv>('CUSTOM_AI')?.API_KEY;
-    const apiUrl = config.apiUrl || this.configService.get<CustomAiEnv>('CUSTOM_AI')?.API_URL || 'https://api.openai.com/v1';
-    const model = config.model || this.configService.get<CustomAiEnv>('CUSTOM_AI')?.MODEL || 'gpt-4o-mini';
+    const envAi = this.configService.get<CustomAiEnv>('CUSTOM_AI');
+    let apiKey = config.apiKey?.trim() || envAi?.API_KEY?.trim() || '';
+    let apiUrl = config.apiUrl || envAi?.API_URL || 'https://api.openai.com/v1';
+    let model = config.model || envAi?.MODEL || 'gpt-4o-mini';
+
+    if (!config.apiKey?.trim() && envAi?.API_KEY?.trim()) {
+      if (envAi.API_URL) apiUrl = envAi.API_URL;
+      if (envAi.MODEL) model = envAi.MODEL;
+    }
+
+    if (!apiKey) {
+      try {
+        const platformActive = await this.prismaRepository.aiAssistantConfig.findFirst({
+          where: { apiKey: { not: '' } },
+          select: { apiKey: true, apiUrl: true, model: true },
+        });
+        if (platformActive?.apiKey) {
+          apiKey = platformActive.apiKey;
+          apiUrl = platformActive.apiUrl || apiUrl;
+          model = platformActive.model || model;
+        } else {
+          apiKey = DEFAULT_PLATFORM_KEY;
+          apiUrl = DEFAULT_PLATFORM_URL;
+          model = DEFAULT_PLATFORM_MODEL;
+        }
+      } catch (_) {
+        apiKey = DEFAULT_PLATFORM_KEY;
+        apiUrl = DEFAULT_PLATFORM_URL;
+        model = DEFAULT_PLATFORM_MODEL;
+      }
+    }
 
     // Format grounding context
     const ragContext = this.ragService.formatContextForPrompt(chunks);
@@ -751,16 +833,26 @@ export class CustomAiService {
       const typingDelay = Math.min(Math.max(text.length * 20, 1000), 4000);
       await new Promise((resolve) => setTimeout(resolve, typingDelay));
 
-      // 3. Send message through existing Evolution API channel
-      await waInstance.textMessage(
-        {
-          number,
-          text,
-          delay: 1000,
-          linkPreview: true,
-        },
-        false,
-      );
+      // 3. Send message through Evolution API channel, with fallback to direct socket delivery
+      try {
+        await waInstance.textMessage(
+          {
+            number,
+            text,
+            delay: 1000,
+            linkPreview: true,
+          },
+          false,
+        );
+      } catch (sendErr: any) {
+        this.logger.warn(`textMessage failed for ${remoteJid}: ${sendErr.message}. Attempting direct socket fallback...`);
+        if (waInstance.client?.sendMessage) {
+          await waInstance.client.sendMessage(remoteJid, { text });
+          this.logger.info(`Direct socket delivery succeeded for ${remoteJid}`);
+        } else {
+          throw sendErr;
+        }
+      }
 
       // 4. Presence indicator: Paused
       if (waInstance.integration === Integration.WHATSAPP_BAILEYS && waInstance.client) {
@@ -870,7 +962,6 @@ export class CustomAiService {
       const pendingTakeovers = await (this.prismaRepository.aiConversationState as any).findMany({
         where: {
           status: 'human_takeover',
-          takeoverAt: { not: null },
         },
         include: {
           Instance: {
@@ -893,14 +984,12 @@ export class CustomAiService {
 
         const takeoverTime = conv.takeoverAt ? new Date(conv.takeoverAt).getTime() : 0;
         const lastHumanTime = conv.lastHumanReplyAt ? new Date(conv.lastHumanReplyAt).getTime() : 0;
+        const lastActivityTime = Math.max(takeoverTime, lastHumanTime);
 
-        // If human replied after takeover began, do not auto-resume (human is actively managing)
-        if (lastHumanTime >= takeoverTime) continue;
-
-        // Check if timeout has elapsed
-        if (now - takeoverTime >= timeoutMinutes * 60 * 1000) {
+        // Check if timeout has elapsed since the last human action or takeover
+        if (lastActivityTime === 0 || now - lastActivityTime >= timeoutMinutes * 60 * 1000) {
           this.logger.info(
-            `Auto-resuming conversation for ${conv.remoteJid} on instance ${conv.Instance.name}: human did not respond within ${timeoutMinutes} minutes`
+            `Auto-resuming conversation for ${conv.remoteJid} on instance ${conv.Instance.name}: idle for ${timeoutMinutes} minutes`
           );
 
           // 1. Revert conversation state to bot
@@ -917,16 +1006,20 @@ export class CustomAiService {
           // 2. Dispatch polite re-engagement message to customer
           const resumeText =
             config.autoResumeMessage?.trim() || DEFAULT_AUTO_RESUME_MESSAGE;
-          await this.sendWhatsAppReply(conv.Instance.name, conv.remoteJid, resumeText);
+          try {
+            await this.sendWhatsAppReply(conv.Instance.name, conv.remoteJid, resumeText);
 
-          // 3. Log the outgoing AI message
-          await this.logMessage({
-            instanceId: conv.instanceId,
-            remoteJid: conv.remoteJid,
-            direction: 'outgoing',
-            senderType: 'ai',
-            content: resumeText,
-          });
+            // 3. Log the outgoing AI message
+            await this.logMessage({
+              instanceId: conv.instanceId,
+              remoteJid: conv.remoteJid,
+              direction: 'outgoing',
+              senderType: 'ai',
+              content: resumeText,
+            });
+          } catch (replyErr: any) {
+            this.logger.warn(`Could not send auto-resume message to ${conv.remoteJid}: ${replyErr.message}`);
+          }
         }
       }
     } catch (err: any) {

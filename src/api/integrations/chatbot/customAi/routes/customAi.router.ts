@@ -695,6 +695,16 @@ export class CustomAiRouter {
       }
     });
 
+    this.router.post('/conversations/:instanceName/resume-all', auth, async (req: Request, res: Response) => {
+      try {
+        const { instanceName } = req.params;
+        const result = await this.conversationController.resumeAllAi(instanceName);
+        return res.json(result);
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    });
+
     this.router.post('/conversations/:instanceName/takeover', auth, async (req: Request, res: Response) => {
       try {
         const { instanceName } = req.params;

@@ -2403,6 +2403,9 @@
           <button id="btnRefreshConversations" onclick="loadConversations()" class="btn btn-secondary" style="font-size: 11px; padding: 4px 9px; display: flex; align-items: center; gap: 4px;">
             <span>↻</span> Refresh
           </button>
+          <button id="btnResumeAllConversations" onclick="resumeAllConversations()" class="btn btn-secondary" style="font-size: 11px; padding: 4px 9px; display: flex; align-items: center; gap: 4px; color: #10b981; border-color: rgba(16, 185, 129, 0.3);" title="Resume AI for all conversations in this instance">
+            <span>▶</span> Resume All AI
+          </button>
         </div>
       </div>
 
@@ -4342,6 +4345,23 @@
         updateChatControls(res.state);
         showToast(res.message);
         loadConversations();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    async function resumeAllConversations() {
+      if (!currentInstance) return;
+      if (!confirm(`Resume AI for all conversations in instance "${currentInstance}"?`)) return;
+      try {
+        const res = await apiRequest(`/conversations/${encodeURIComponent(currentInstance)}/resume-all`, {
+          method: 'POST',
+        });
+        showToast(res.message || 'Resumed AI for all conversations');
+        await loadConversations();
+        if (activeConversationJid) {
+          await selectConversation(activeConversationJid);
+        }
       } catch (err) {
         showToast(err.message, true);
       }

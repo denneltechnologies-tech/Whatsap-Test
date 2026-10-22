@@ -452,6 +452,40 @@ export class ConversationController {
   public async resumeAi(instanceName: string, remoteJid: string) {
     const instanceId = await this.getInstanceId(instanceName);
 
+    // Also look up any alternate linked JID from Message table so resuming phone JID also resumes LID
+    const candidateJids = new Set<string>([remoteJid]);
+    try {
+      const altLinks = await (this.prismaRepository as any).message.findMany({
+        where: {
+          instanceId,
+          OR: [
+            { key: { path: ['remoteJid'], equals: remoteJid } },
+            { key: { path: ['remoteJidAlt'], equals: remoteJid } },
+          ],
+        },
+        select: { key: true },
+        take: 30,
+      });
+      for (const m of altLinks) {
+        const k = m.key as any;
+        if (k?.remoteJid && typeof k.remoteJid === 'string') candidateJids.add(k.remoteJid);
+        if (k?.remoteJidAlt && typeof k.remoteJidAlt === 'string') candidateJids.add(k.remoteJidAlt);
+      }
+    } catch (_) {}
+
+    await (this.prismaRepository as any).aiConversationState.updateMany({
+      where: {
+        instanceId,
+        remoteJid: { in: Array.from(candidateJids) },
+      },
+      data: {
+        status: 'bot',
+        needsHumanAttention: false,
+        takeoverReason: null,
+        takeoverAt: null,
+      },
+    });
+
     const updated = await (this.prismaRepository as any).aiConversationState.upsert({
       where: {
         instanceId_remoteJid: {
@@ -473,6 +507,31 @@ export class ConversationController {
     });
 
     return { message: 'AI resumed for this conversation', state: updated };
+  }
+
+  /**
+   * Resumes AI replies for all conversations belonging to an instance
+   */
+  public async resumeAllAi(instanceName: string) {
+    const instanceId = await this.getInstanceId(instanceName);
+
+    const result = await (this.prismaRepository as any).aiConversationState.updateMany({
+      where: {
+        instanceId,
+        status: { in: ['human_takeover', 'paused'] },
+      },
+      data: {
+        status: 'bot',
+        needsHumanAttention: false,
+        takeoverReason: null,
+        takeoverAt: null,
+      },
+    });
+
+    return {
+      message: `Resumed AI for ${result.count} conversation${result.count === 1 ? '' : 's'}`,
+      count: result.count,
+    };
   }
 
   /**

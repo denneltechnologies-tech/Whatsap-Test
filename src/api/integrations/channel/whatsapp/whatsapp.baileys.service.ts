@@ -3559,9 +3559,15 @@ export class BaileysStartupService extends ChannelStartupService {
     let verify: { jid: string; exists: boolean }[] = [];
     const normalNumbersNotInCache = numbersNotInCache.filter((jid) => !jid.includes('@lid'));
 
-    if (normalNumbersNotInCache.length > 0) {
+    if (normalNumbersNotInCache.length > 0 && this.client) {
       this.logger.verbose(`Checking ${normalNumbersNotInCache.length} numbers via Baileys (not found in cache)`);
-      verify = await this.client.onWhatsApp(...normalNumbersNotInCache);
+      try {
+        const res = await this.client.onWhatsApp(...normalNumbersNotInCache);
+        verify = Array.isArray(res) ? res : [];
+      } catch (err: any) {
+        this.logger.warn(`onWhatsApp check warning: ${err?.message || err}`);
+        verify = [];
+      }
     }
 
     const verifiedUsers = await Promise.all(
