@@ -996,6 +996,14 @@
       min-width: 0;
     }
 
+    .chat-header-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
+
     .chat-header-avatar {
       width: 30px;
       height: 30px;
@@ -1402,9 +1410,9 @@
         top: 0;
         bottom: 0;
         left: 0;
-        width: 250px !important;
+        width: 260px !important;
         height: 100vh;
-        z-index: 60;
+        z-index: 100;
         transform: translateX(-100%);
         transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 4px 0 24px rgba(0, 0, 0, 0.85);
@@ -1429,25 +1437,39 @@
         min-width: 0;
       }
 
+      /* Topbar: single clean non-wrapping row on phone */
       .topbar {
-        padding: 8px 12px;
-        min-height: 48px;
-        gap: 8px;
-        flex-wrap: wrap;
+        padding: 6px 10px !important;
+        min-height: 46px !important;
+        gap: 6px !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+      }
+
+      .topbar::-webkit-scrollbar {
+        display: none !important;
       }
 
       .instance-selector {
-        gap: 6px;
+        gap: 5px !important;
+      }
+
+      #topbarInstanceSelectorWrapper label {
+        display: none !important;
       }
 
       #instanceSelect {
-        width: 120px !important;
-        font-size: 11px;
+        width: 110px !important;
+        padding: 4px 6px !important;
+        font-size: 11px !important;
       }
 
       .top-actions {
-        gap: 6px;
-        flex-wrap: wrap;
+        gap: 5px !important;
+        flex-wrap: nowrap !important;
+        flex-shrink: 0 !important;
       }
 
       #linkEvolutionManager {
@@ -1455,29 +1477,71 @@
       }
 
       #currentUserPill {
-        padding: 3px 6px;
-        font-size: 10.5px;
+        display: none !important;
       }
 
-      #userEmailDisplay {
-        display: none;
+      .btn-top-signout {
+        display: none !important;
       }
 
       .btn-disconnect-text,
       #btnTopConnectWaText {
-        font-size: 11px;
+        display: none !important;
+      }
+
+      #btnTopConnectWa,
+      #btnTopDisconnectWa {
+        padding: 5px 8px !important;
+        font-size: 11.5px !important;
       }
 
       .view-content {
-        padding: 12px 12px;
+        padding: 10px 10px;
       }
 
       .view-header {
-        margin-bottom: 14px;
+        margin-bottom: 12px;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
       }
 
       .view-header h2 {
-        font-size: 16px;
+        font-size: 15.5px;
+      }
+
+      .view-header > div:last-child {
+        flex-wrap: wrap !important;
+        width: 100% !important;
+      }
+
+      /* Inbox header in list mode */
+      .inbox-view-header {
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        margin-bottom: 6px !important;
+        gap: 6px !important;
+      }
+
+      .inbox-header-subtitle {
+        display: none !important;
+      }
+
+      .inbox-header-actions {
+        display: flex !important;
+        gap: 4px !important;
+        flex-shrink: 0 !important;
+        width: auto !important;
+      }
+
+      .inbox-header-actions .btn {
+        padding: 4px 7px !important;
+        font-size: 11px !important;
+      }
+
+      #btnTestSound {
+        display: none !important;
       }
 
       .stats-grid {
@@ -1533,7 +1597,9 @@
       #tab-inbox.active {
         padding: 4px 6px 6px 6px !important;
         height: calc(100vh - 50px) !important;
+        height: calc(100dvh - 50px) !important;
         max-height: calc(100vh - 50px) !important;
+        max-height: calc(100dvh - 50px) !important;
       }
 
       .inbox-container {
@@ -1560,61 +1626,224 @@
         min-width: 100% !important;
       }
 
+      /* Fullscreen Native Chat Screen when active on mobile */
+      body.mobile-chat-active .topbar {
+        display: none !important;
+      }
+
+      body.mobile-chat-active #tab-inbox > .view-header,
+      body.mobile-chat-active #tab-inbox > .inbox-view-header {
+        display: none !important;
+      }
+
+      body.mobile-chat-active #tab-inbox.active {
+        padding: 0 !important;
+        margin: 0 !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100vh !important;
+        max-height: 100dvh !important;
+        border: none !important;
+      }
+
+      body.mobile-chat-active #main {
+        padding: 0 !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        overflow: hidden !important;
+      }
+
+      body.mobile-chat-active .inbox-container {
+        height: 100% !important;
+        border-radius: 0 !important;
+        border: none !important;
+      }
+
       body.mobile-chat-active #chatListPane {
         display: none !important;
       }
 
       body.mobile-chat-active #chatPane {
         display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 0 !important;
       }
 
       body.mobile-chat-active #btnChatMobileBack {
         display: inline-flex !important;
       }
 
+      /* Chat Header on Mobile */
+      .chat-header {
+        padding: 6px 10px !important;
+        min-height: 48px !important;
+        gap: 6px !important;
+        flex-wrap: nowrap !important;
+        box-sizing: border-box !important;
+      }
+
+      .chat-header-user {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        gap: 6px !important;
+        overflow: hidden !important;
+      }
+
+      #btnChatMobileBack {
+        padding: 4px 7px !important;
+        font-size: 11.5px !important;
+        margin-right: 0 !important;
+        flex-shrink: 0 !important;
+      }
+
+      .chat-header-avatar {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 12px !important;
+        flex-shrink: 0 !important;
+      }
+
+      .chat-header-info {
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+        overflow: hidden !important;
+      }
+
+      .chat-header-title {
+        font-size: 12.5px !important;
+        line-height: 1.25 !important;
+        max-width: 100% !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+
+      .chat-header-subtitle {
+        font-size: 10px !important;
+        line-height: 1.2 !important;
+        max-width: 100% !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+
+      .chat-header-actions {
+        flex-shrink: 0 !important;
+        gap: 4px !important;
+      }
+
+      #activeChatStatusPill {
+        display: none !important;
+      }
+
+      #btnPauseResume {
+        padding: 4px 7px !important;
+        font-size: 11px !important;
+        white-space: nowrap !important;
+        border-radius: 6px !important;
+      }
+
+      #btnTakeover {
+        padding: 4px 8px !important;
+        font-size: 11px !important;
+        white-space: nowrap !important;
+        border-radius: 6px !important;
+      }
+
+      .chat-header-actions .btn:last-child {
+        padding: 4px 7px !important;
+        font-size: 11px !important;
+      }
+
+      /* Chat Messages on Mobile */
       .chat-messages {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
         padding: 8px 10px !important;
+        gap: 8px !important;
+        -webkit-overflow-scrolling: touch !important;
       }
 
       .msg-bubble {
-        max-width: 88%;
-        font-size: 12px;
-        padding: 7px 10px;
+        max-width: 86% !important;
+        font-size: 12.5px !important;
+        padding: 7px 11px !important;
+        border-radius: 12px !important;
       }
 
+      /* Notice Bar on Mobile */
+      .chat-status-notice {
+        padding: 4px 10px !important;
+        font-size: 10px !important;
+        line-height: 1.3 !important;
+      }
+
+      .chat-status-notice span:last-child {
+        display: none !important;
+      }
+
+      /* Quick Templates on Mobile */
+      .chat-quick-templates {
+        padding: 4px 8px !important;
+        gap: 5px !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+      }
+
+      .chat-quick-templates::-webkit-scrollbar {
+        display: none !important;
+      }
+
+      .chat-quick-pill {
+        font-size: 10.5px !important;
+        padding: 3px 8px !important;
+        border-radius: 12px !important;
+        flex-shrink: 0 !important;
+      }
+
+      /* Input Bar on Mobile */
       .chat-input-bar {
-        padding: 6px 8px;
-        gap: 6px;
+        padding: 6px 8px max(8px, env(safe-area-inset-bottom)) 8px !important;
+        gap: 6px !important;
       }
 
       .chat-textarea {
-        font-size: 12px;
-        padding: 6px 9px;
+        font-size: 13.5px !important;
+        min-height: 38px !important;
+        padding: 8px 10px !important;
+        border-radius: 16px !important;
       }
 
       .chat-send-btn {
-        padding: 0 10px;
-        height: 36px;
+        height: 38px !important;
+        width: 42px !important;
+        padding: 0 !important;
+        border-radius: 16px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0 !important;
       }
     }
 
     /* Small Mobile Phones (< 480px) */
     @media (max-width: 480px) {
       .topbar {
-        padding: 6px 8px;
+        padding: 5px 8px !important;
       }
 
       .status-badge {
-        font-size: 10px;
-        padding: 2px 6px;
-      }
-
-      #topbarInstanceSelectorWrapper label {
-        display: none;
+        font-size: 9.5px !important;
+        padding: 2px 5px !important;
       }
 
       #instanceSelect {
-        width: 105px !important;
+        width: 95px !important;
+        font-size: 10.5px !important;
       }
 
       .stats-grid {
@@ -1622,8 +1851,8 @@
       }
 
       .btn {
-        padding: 5px 8px;
-        font-size: 11px;
+        padding: 4px 7px;
+        font-size: 10.5px;
       }
 
       .chat-filter-bar {
@@ -1762,7 +1991,7 @@
           <span id="userRoleBadge" class="badge-tag" style="background: rgba(139, 92, 246, 0.25); color: #c4b5fd; font-weight: 700; font-size: 9.5px;">SUPER ADMIN</span>
           <span id="userEmailDisplay" style="color: var(--text-main); font-weight: 500;">Dennel Admin</span>
         </div>
-        <button onclick="logout()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11.5px; display: flex; align-items: center; gap: 5px; border-color: rgba(239, 68, 68, 0.35); color: #fca5a5; background: rgba(239, 68, 68, 0.08); cursor: pointer;" title="Sign out to switch to client tenant">
+        <button onclick="logout()" class="btn btn-secondary btn-top-signout" style="padding: 4px 10px; font-size: 11.5px; display: flex; align-items: center; gap: 5px; border-color: rgba(239, 68, 68, 0.35); color: #fca5a5; background: rgba(239, 68, 68, 0.08); cursor: pointer;" title="Sign out to switch to client tenant">
           <span>🚪</span> <span class="btn-signout-text">Sign Out</span>
         </button>
         <button id="btnTopDisconnectWa" onclick="confirmDisconnectWhatsApp()" class="btn btn-danger" style="display: none; padding: 4px 10px; font-size: 11.5px; align-items: center; gap: 5px;" title="Disconnect current WhatsApp number & link a different one">
@@ -2154,24 +2383,24 @@
 
     <!-- VIEW 4: Conversation Inbox -->
     <div id="tab-inbox" class="view-content">
-      <div class="view-header" style="margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+      <div class="view-header inbox-view-header" style="margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
           <h2 style="font-size: 14.5px; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
             <span>Conversation Inbox</span>
           </h2>
-          <span style="font-size: 11px; color: var(--text-dim); white-space: nowrap;">WhatsApp Live Agent Console</span>
+          <span class="inbox-header-subtitle" style="font-size: 11px; color: var(--text-dim); white-space: nowrap;">WhatsApp Live Agent Console</span>
         </div>
-        <div style="display: flex; gap: 5px; align-items: center; flex-shrink: 0;">
+        <div class="inbox-header-actions" style="display: flex; gap: 5px; align-items: center; flex-shrink: 0;">
           <button id="btnSoundToggle" onclick="toggleSoundAlerts()" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px; display: flex; align-items: center; gap: 4px;" title="Toggle takeover chime sound">
             <span id="soundIcon">🔔</span> <span id="soundText">Sound: ON</span>
           </button>
           <button id="btnPushToggle" onclick="requestDesktopNotifications()" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px; display: flex; align-items: center; gap: 4px;" title="Enable browser desktop notifications">
             <span>📱</span> <span id="pushText">Alerts</span>
           </button>
-          <button onclick="playChimeNotification()" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;" title="Test sound chime">
+          <button id="btnTestSound" onclick="playChimeNotification()" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;" title="Test sound chime">
             🔊 Test
           </button>
-          <button onclick="loadConversations()" class="btn btn-secondary" style="font-size: 11px; padding: 4px 9px; display: flex; align-items: center; gap: 4px;">
+          <button id="btnRefreshConversations" onclick="loadConversations()" class="btn btn-secondary" style="font-size: 11px; padding: 4px 9px; display: flex; align-items: center; gap: 4px;">
             <span>↻</span> Refresh
           </button>
         </div>
@@ -2225,7 +2454,7 @@
                 <span>←</span> Back
               </button>
               <div id="activeChatAvatar" class="chat-header-avatar">?</div>
-              <div>
+              <div class="chat-header-info">
                 <div id="activeChatName" class="chat-header-title">Select a conversation</div>
                 <div id="activeChatJid" class="chat-header-subtitle">Choose a chat from the left to view message history</div>
               </div>

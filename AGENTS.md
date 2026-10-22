@@ -322,10 +322,10 @@ export DATABASE_PROVIDER=postgresql  # or mysql
 ## Communication Standards
 
 ### Language Requirements
-- **User communication**: Always respond in Portuguese (PT-BR)
+- **User communication**: Always respond in English
 - **Code/comments**: English for technical documentation
 - **API responses**: English for consistency
-- **Error messages**: Portuguese for user-facing errors
+- **Error messages**: English for user-facing errors
 
 ### Documentation Standards
 - **Inline comments**: Document complex business logic
