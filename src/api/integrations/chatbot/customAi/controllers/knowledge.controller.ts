@@ -60,9 +60,10 @@ export class KnowledgeController {
    */
   public async getDocuments(instanceName: string) {
     const instanceId = await this.getInstanceId(instanceName);
+    const businessInstanceIds = await this.customAiService.getBusinessInstanceIds(instanceId);
 
     const documents = await (this.prismaRepository as any).knowledgeDocument.findMany({
-      where: { instanceId },
+      where: { instanceId: { in: businessInstanceIds } },
       orderBy: { createdAt: 'desc' },
       include: {
         _count: {
@@ -338,9 +339,10 @@ export class KnowledgeController {
    */
   public async deleteDocument(instanceName: string, documentId: string) {
     const instanceId = await this.getInstanceId(instanceName);
+    const businessInstanceIds = await this.customAiService.getBusinessInstanceIds(instanceId);
 
     const doc = await (this.prismaRepository as any).knowledgeDocument.findFirst({
-      where: { id: documentId, instanceId },
+      where: { id: documentId, instanceId: { in: businessInstanceIds } },
     });
 
     if (!doc) {
@@ -355,7 +357,7 @@ export class KnowledgeController {
   }
 
   /**
-   * Test knowledge search
+   * Test knowledge search across all shared lines for this business
    */
   public async searchKnowledge(instanceName: string, query: string, topK = 4) {
     if (!query) {
@@ -363,10 +365,11 @@ export class KnowledgeController {
     }
 
     const instanceId = await this.getInstanceId(instanceName);
+    const businessInstanceIds = await this.customAiService.getBusinessInstanceIds(instanceId);
     const embSettings = await this.getEmbeddingSettings(instanceId);
 
     const results = await this.ragService.retrieveRelevantChunks(
-      instanceId,
+      businessInstanceIds,
       query,
       topK,
       0.1, // lower threshold for search preview

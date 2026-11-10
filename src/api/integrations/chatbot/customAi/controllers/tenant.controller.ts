@@ -67,12 +67,20 @@ export class TenantController {
 
       // Fetch instance name if assigned
       let instanceName: string | undefined;
+      let linkedInstances: any[] = [];
       if (user.instanceId) {
-        const inst = await this.prismaRepository.instance.findUnique({
-          where: { id: user.instanceId },
-          select: { name: true },
+        linkedInstances = await this.prismaRepository.instance.findMany({
+          where: {
+            OR: [
+              { id: user.instanceId },
+              { businessId: user.instanceId },
+            ],
+          },
+          select: { id: true, name: true, businessId: true, number: true, profileName: true },
         });
-        instanceName = inst?.name;
+
+        const primaryInst = linkedInstances.find((i) => i.id === user.instanceId);
+        instanceName = primaryInst?.name || linkedInstances[0]?.name;
       }
 
       const token = generateToken({
@@ -93,6 +101,13 @@ export class TenantController {
           businessName: user.businessName,
           instanceId: user.instanceId,
           instanceName,
+          instances: linkedInstances.map((i) => ({
+            id: i.id,
+            name: i.name,
+            number: i.number,
+            profileName: i.profileName,
+            isPrimary: i.id === user.instanceId,
+          })),
         },
       };
     }
@@ -170,17 +185,33 @@ export class TenantController {
     }
 
     let instanceName = userContext.instanceName;
-    if (user.instanceId && !instanceName) {
-      const inst = await this.prismaRepository.instance.findUnique({
-        where: { id: user.instanceId },
-        select: { name: true },
+    let linkedInstances: any[] = [];
+    if (user.instanceId) {
+      linkedInstances = await this.prismaRepository.instance.findMany({
+        where: {
+          OR: [
+            { id: user.instanceId },
+            { businessId: user.instanceId },
+          ],
+        },
+        select: { id: true, name: true, businessId: true, number: true, profileName: true, connectionStatus: true },
       });
-      instanceName = inst?.name;
+
+      const primaryInst = linkedInstances.find((i) => i.id === user.instanceId);
+      instanceName = primaryInst?.name || linkedInstances[0]?.name;
     }
 
     const profile = {
       ...user,
       instanceName,
+      instances: linkedInstances.map((i) => ({
+        id: i.id,
+        name: i.name,
+        number: i.number,
+        profileName: i.profileName,
+        connectionStatus: i.connectionStatus,
+        isPrimary: i.id === user.instanceId,
+      })),
     };
 
     return {
@@ -464,5 +495,155 @@ export class TenantController {
     });
 
     return { message: `Business account '${tenant.businessName}' deleted successfully` };
+  }
+
+  /**
+   * Adds an additional WhatsApp line to an existing business
+   * The new line automatically shares the business's Knowledge Base and AI Settings.
+   */
+  public async addLineToBusiness(data: {
+    primaryInstanceName: string;
+    lineName: string;
+    instanceName?: string;
+    number?: string;
+  }) {
+    const { primaryInstanceName, lineName } = data;
+    if (!primaryInstanceName || !lineName) {
+      throw new BadRequestException('Primary business instance name and line name are required');
+    }
+
+    const primaryInst = await this.prismaRepository.instance.findUnique({
+      where: { name: primaryInstanceName },
+    });
+    if (!primaryInst) {
+      throw new NotFoundException(`Primary business instance '${primaryInstanceName}' not found`);
+    }
+
+    const primaryId = primaryInst.businessId || primaryInst.id;
+
+    // Sanitize requested line instance name
+    let cleanName = data.instanceName?.trim();
+    if (!cleanName) {
+      const slug = lineName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .substring(0, 12);
+      const randSuffix = Math.random().toString(36).substring(2, 6);
+      cleanName = `${primaryInst.name}_${slug || 'line'}_${randSuffix}`;
+    } else {
+      cleanName = cleanName
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+    }
+
+    // Check uniqueness
+    const exists = await this.prismaRepository.instance.findUnique({
+      where: { name: cleanName },
+    });
+    if (exists) {
+      throw new BadRequestException(`An instance named '${cleanName}' already exists. Please choose a different name.`);
+    }
+
+    // Create the instance via Evolution API
+    let createdInst: any = null;
+    if (this.instanceController && typeof this.instanceController.createInstance === 'function') {
+      try {
+        const instDto = new InstanceDto();
+        instDto.instanceName = cleanName;
+        instDto.integration = Integration.WHATSAPP_BAILEYS;
+        instDto.qrcode = true;
+        instDto.number = data.number || undefined;
+        await this.instanceController.createInstance(instDto);
+      } catch (err: any) {
+        this.logger.warn(`InstanceController error: ${err.message}`);
+      }
+    }
+
+    // Ensure instance in database has businessId set to primaryId
+    createdInst = await this.prismaRepository.instance.findUnique({
+      where: { name: cleanName },
+    });
+
+    if (createdInst) {
+      await this.prismaRepository.instance.update({
+        where: { id: createdInst.id },
+        data: {
+          businessId: primaryId,
+          profileName: lineName,
+        },
+      });
+    } else {
+      createdInst = await this.prismaRepository.instance.create({
+        data: {
+          name: cleanName,
+          integration: Integration.WHATSAPP_BAILEYS,
+          connectionStatus: 'close',
+          businessId: primaryId,
+          profileName: lineName,
+        },
+      });
+    }
+
+    // Inherit AI Assistant configuration from primary instance
+    await this.customAiService.getOrCreateConfig(createdInst.id);
+
+    this.logger.info(
+      `Added new line '${cleanName}' (${lineName}) to business instance '${primaryInst.name}' (shared knowledge active)`
+    );
+
+    return {
+      success: true,
+      message: `New WhatsApp line '${lineName}' added to business. It is connected to the shared Knowledge Base!`,
+      instance: {
+        id: createdInst.id,
+        name: cleanName,
+        lineName,
+        businessId: primaryId,
+        isPrimary: false,
+      },
+    };
+  }
+
+  /**
+   * Disconnects and removes a secondary line from a business
+   */
+  public async removeLineFromBusiness(primaryInstanceName: string, instanceNameToRemove: string) {
+    if (primaryInstanceName === instanceNameToRemove) {
+      throw new BadRequestException('Cannot remove the primary business line. You can only remove secondary lines.');
+    }
+
+    const primaryInst = await this.prismaRepository.instance.findUnique({
+      where: { name: primaryInstanceName },
+    });
+    if (!primaryInst) {
+      throw new NotFoundException(`Primary instance '${primaryInstanceName}' not found`);
+    }
+
+    const targetInst = await this.prismaRepository.instance.findUnique({
+      where: { name: instanceNameToRemove },
+    });
+    if (!targetInst) {
+      throw new NotFoundException(`Line instance '${instanceNameToRemove}' not found`);
+    }
+
+    // Verify it belongs to this business
+    const primaryId = primaryInst.businessId || primaryInst.id;
+    if (targetInst.businessId !== primaryId) {
+      throw new ForbiddenException(`Instance '${instanceNameToRemove}' does not belong to this business`);
+    }
+
+    // Delete instance from database
+    await this.prismaRepository.instance.delete({
+      where: { id: targetInst.id },
+    }).catch(() => {});
+
+    return {
+      success: true,
+      message: `Line '${instanceNameToRemove}' removed successfully from business.`,
+    };
   }
 }

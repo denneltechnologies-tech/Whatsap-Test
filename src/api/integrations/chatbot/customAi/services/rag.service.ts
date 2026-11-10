@@ -215,7 +215,7 @@ export class RagService {
    * Retrieves top-K knowledge chunks for a query
    */
   public async retrieveRelevantChunks(
-    instanceId: string,
+    instanceId: string | string[],
     query: string,
     topK = 4,
     minScore = 0.35,
@@ -239,10 +239,11 @@ export class RagService {
         embeddingConfig?.apiKey,
       );
 
-      // 2. Fetch chunks with their parent document
+      // 2. Fetch chunks with their parent document across all target business instances
+      const instanceCondition = Array.isArray(instanceId) ? { in: instanceId } : instanceId;
       const chunks = await (this.prismaRepository as any).knowledgeChunk.findMany({
         where: {
-          instanceId,
+          instanceId: instanceCondition,
         },
         include: {
           Document: {

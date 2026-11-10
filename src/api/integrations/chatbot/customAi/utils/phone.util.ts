@@ -29,3 +29,15 @@ export function normalizeWhatsAppNumber(phone: string): string {
 
   return digits;
 }
+
+/**
+ * Normalizes one or more WhatsApp phone numbers from a string (comma/semicolon/newline separated) or array
+ */
+export function normalizeWhatsAppNumbers(phones: string | string[] | null | undefined): string[] {
+  if (!phones) return [];
+  const list = Array.isArray(phones) ? phones : String(phones).split(/[,;\n]/);
+  const normalized = list
+    .map((p) => normalizeWhatsAppNumber(p))
+    .filter((digits) => digits && digits.length >= 8);
+  return Array.from(new Set(normalized));
+}

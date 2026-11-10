@@ -1975,10 +1975,13 @@
           <span>☰</span>
         </button>
         <div class="instance-selector" id="topbarInstanceSelectorWrapper">
-          <label style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Instance:</label>
-          <select id="instanceSelect" class="form-select" style="width: 150px; padding: 4px 8px; font-size: 11.5px;" onchange="onInstanceChanged()">
+          <label style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Line:</label>
+          <select id="instanceSelect" class="form-select" style="min-width: 140px; max-width: 220px; padding: 4px 8px; font-size: 11.5px;" onchange="onInstanceChanged()">
             <option value="">Loading...</option>
           </select>
+          <button id="btnTopAddLine" onclick="openAddLineModal()" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" title="Add another WhatsApp number/line for this business">
+            <span>➕</span> <span>Add Line</span>
+          </button>
           <div id="connectionBadge" class="status-badge closed">
             <span class="status-dot"></span>
             <span id="connectionText">Checking...</span>
@@ -2034,6 +2037,26 @@
         <div class="stat-card">
           <div class="stat-label">Indexed Vector Chunks <span>🧩</span></div>
           <div class="stat-value" id="statChunks" style="color: var(--success);">0</div>
+        </div>
+      </div>
+
+      <!-- Business Lines & Connected WhatsApp Numbers -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+              <span>📱</span> Connected WhatsApp Numbers (Shared Knowledge Base)
+            </h3>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+              All phone numbers connected here share the <strong>exact same company knowledge base</strong> and AI persona.
+            </p>
+          </div>
+          <button onclick="openAddLineModal()" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+            <span>➕</span> Add Another WhatsApp Number
+          </button>
+        </div>
+        <div id="businessLinesContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; padding: 14px 20px 20px;">
+          <!-- Dynamically populated lines -->
         </div>
       </div>
 
@@ -2285,14 +2308,14 @@
             </div>
 
             <div class="form-group" style="margin-bottom: 16px;">
-              <label class="form-label">Manager WhatsApp Phone Number (with Country Code)</label>
+              <label class="form-label">Manager WhatsApp Phone Number(s) (Comma-separated for multiple)</label>
               <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <input type="text" id="cfgAdminNotificationPhone" class="form-input" placeholder="e.g. 15551234567 or +15551234567" style="max-width: 380px;">
+                <input type="text" id="cfgAdminNotificationPhone" class="form-input" placeholder="e.g. 233241234567, 233209876543" style="max-width: 420px;">
                 <button type="button" class="btn btn-secondary" onclick="testNotificationAlert()" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12px;">
                   <span>🔔</span> Send Test Alert
                 </button>
               </div>
-              <div class="form-hint">Enter your phone digits with country code. Example: <code>15551234567</code> (US) or <code>447123456789</code> (UK) or <code>233...</code> (Ghana) or <code>5511...</code> (Brazil).</div>
+              <div class="form-hint">Enter one or more manager WhatsApp numbers with country code, separated by commas. Example: <code>233241234567, 233209876543</code>. All numbers will receive takeover alerts simultaneously.</div>
             </div>
 
             <!-- Auto-Resume AI after human inactivity -->
@@ -2333,6 +2356,12 @@
           <button onclick="openModal('urlModal')" class="btn btn-secondary">+ Ingest URL</button>
           <button onclick="openModal('businessModal')" class="btn btn-secondary">+ Business Policy</button>
         </div>
+      </div>
+
+      <!-- Shared Knowledge Banner -->
+      <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px; font-size: 12.5px; display: flex; align-items: center; gap: 8px; color: #93c5fd;">
+        <span>🌐</span>
+        <span><strong>Shared Company Knowledge:</strong> Documents, FAQs, and business policies uploaded here are <strong>automatically shared across all connected WhatsApp phone lines</strong> for this business.</span>
       </div>
 
       <!-- Drag & Drop Upload -->
@@ -2571,6 +2600,49 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- Add Business Line Modal -->
+  <div id="addLineModal" class="modal-backdrop">
+    <div class="modal-window" style="max-width: 480px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);">
+        <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+          <span>📱</span> Add WhatsApp Number / Line
+        </h3>
+        <button onclick="closeModal('addLineModal')" class="btn btn-secondary" style="padding: 4px 8px;">✕</button>
+      </div>
+
+      <form id="addLineForm" onsubmit="submitAddLine(event)" style="padding: 20px;">
+        <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 16px; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+          💡 <strong>Shared Knowledge:</strong> This new phone number will automatically share your company's existing <strong>Knowledge Base, Documents, and AI Persona</strong>. Customers messaging this number will get answers from the same business knowledge.
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label">Line Name / Department</label>
+          <input type="text" id="newLineName" class="form-input" placeholder="e.g. Sales Team, Support Line, Kumasi Branch" required oninput="autoSlugLineName()">
+          <div class="form-hint">A friendly label to distinguish this phone line in your inbox and reports.</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label">Line Identifier (Instance Name)</label>
+          <input type="text" id="newLineInstance" class="form-input" placeholder="e.g. sales_line" required>
+          <div class="form-hint">Unique identifier for this line (lowercase letters, numbers, and underscores).</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label class="form-label">Phone Number for Pairing Code (Optional)</label>
+          <input type="text" id="newLinePhone" class="form-input" placeholder="e.g. 233241234567 (with country code)">
+          <div class="form-hint">Leave blank to link with a QR code, or enter digits to link with an 8-character pairing code.</div>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" onclick="closeModal('addLineModal')" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="btnSubmitAddLine" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
+            <span>➕</span> Create & Link WhatsApp
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- QR Code / Pairing Modal -->
@@ -2869,26 +2941,32 @@
       return res.json();
     }
 
-    // WhatsApp Phone Number Normalizer
+    // WhatsApp Phone Number Normalizer (Supports single number or comma-separated numbers)
     function sanitizePhoneNumber(phone) {
       if (!phone) return '';
-      let digits = phone.trim().replace(/\D/g, '');
-      if (digits.startsWith('00')) {
-        digits = digits.substring(2);
-      }
-      // Ghana local 10-digit number starting with 0 (e.g. 0273557256 -> 233273557256)
-      if (digits.startsWith('0') && digits.length === 10) {
-        digits = '233' + digits.substring(1);
-      }
-      // Ghana international with local 0 (e.g. 2330273557256 -> 233273557256)
-      if (digits.startsWith('2330') && digits.length === 13) {
-        digits = '233' + digits.substring(4);
-      }
-      // UK local 11-digit starting with 07
-      if (digits.startsWith('07') && digits.length === 11) {
-        digits = '44' + digits.substring(1);
-      }
-      return digits;
+      const list = String(phone).split(/[,;\n]/);
+      const cleaned = list.map(item => {
+        let digits = item.trim().replace(/\D/g, '');
+        if (!digits) return '';
+        if (digits.startsWith('00')) {
+          digits = digits.substring(2);
+        }
+        // Ghana local 10-digit number starting with 0 (e.g. 0273557256 -> 233273557256)
+        if (digits.startsWith('0') && digits.length === 10) {
+          digits = '233' + digits.substring(1);
+        }
+        // Ghana international with local 0 (e.g. 2330273557256 -> 233273557256)
+        if (digits.startsWith('2330') && digits.length === 13) {
+          digits = '233' + digits.substring(4);
+        }
+        // UK local 11-digit starting with 07
+        if (digits.startsWith('07') && digits.length === 11) {
+          digits = '44' + digits.substring(1);
+        }
+        return digits;
+      }).filter(Boolean);
+
+      return cleaned.join(', ');
     }
 
     // Auth Switcher Tabs (Business/Admin vs Master API Key)
@@ -3327,14 +3405,16 @@
         select.innerHTML = '';
 
         if (!instancesList || instancesList.length === 0) {
-          instancesList = [{ name: 'default', state: 'closed' }];
+          instancesList = [{ name: 'default', state: 'closed', isPrimary: true }];
         }
 
         instancesList.forEach(inst => {
           const opt = document.createElement('option');
           opt.value = inst.name;
           const statusText = inst.state === 'open' ? 'Connected' : (inst.state === 'connecting' ? 'Connecting...' : 'Disconnected');
-          opt.textContent = `${inst.name} (${statusText})`;
+          const primaryTag = inst.isPrimary ? ' ⭐' : '';
+          const lineLabel = inst.profileName ? ` [${inst.profileName}]` : '';
+          opt.textContent = `${inst.name}${lineLabel} (${statusText})${primaryTag}`;
           select.appendChild(opt);
         });
 
@@ -3344,8 +3424,153 @@
         select.value = currentInstance;
         const currentMeta = instancesList.find(i => i.name === currentInstance);
         updateConnectionBadge(currentMeta || { state: 'closed' });
+        renderBusinessLinesCard();
       } catch (err) {
         console.error('Error loading instances:', err);
+      }
+    }
+
+    function renderBusinessLinesCard() {
+      const container = document.getElementById('businessLinesContainer');
+      if (!container) return;
+
+      if (!instancesList || instancesList.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-dim); font-size: 13px; grid-column: 1 / -1; padding: 10px 0;">No phone lines configured yet. Click "Add Another WhatsApp Number" to connect your first line.</div>';
+        return;
+      }
+
+      container.innerHTML = instancesList.map(inst => {
+        const isCurrent = inst.name === currentInstance;
+        const isOpen = inst.state === 'open';
+        const isConnecting = inst.state === 'connecting';
+        const phoneFormatted = inst.number ? `+${inst.number}` : (isOpen ? 'Connected' : 'No phone linked yet');
+        const label = inst.profileName || (inst.isPrimary ? 'Primary Line' : 'Secondary Line');
+
+        return `
+          <div style="background: var(--bg-card); border: 1px solid ${isCurrent ? 'var(--primary)' : 'var(--border-color)'}; border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; box-shadow: ${isCurrent ? '0 0 10px rgba(59, 130, 246, 0.25)' : 'none'};">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+              <div>
+                <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span>${isOpen ? '🟢' : (isConnecting ? '🟡' : '⚪')}</span>
+                  <span>${escapeHtml(inst.name)}</span>
+                  ${inst.isPrimary ? '<span class="badge-tag" style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; font-size: 9px; padding: 2px 6px;">PRIMARY</span>' : ''}
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+                  ${escapeHtml(label)}
+                </div>
+                <div style="font-size: 11.5px; color: ${isOpen ? '#86efac' : 'var(--text-dim)'}; margin-top: 4px; font-family: monospace;">
+                  📞 ${escapeHtml(phoneFormatted)}
+                </div>
+              </div>
+              <span class="status-badge ${isOpen ? 'open' : (isConnecting ? 'connecting pulse' : 'closed')}" style="font-size: 10px; padding: 3px 8px; flex-shrink: 0;">
+                ${isOpen ? 'Connected' : (isConnecting ? 'Connecting' : 'Disconnected')}
+              </span>
+            </div>
+
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 10px; margin-top: 4px;">
+              ${!isCurrent ? `
+                <button onclick="switchToInstance('${escapeHtml(inst.name)}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;">
+                  Select Line
+                </button>
+              ` : `
+                <span style="font-size: 11px; color: var(--primary); font-weight: 600; padding: 4px 2px;">✓ Selected</span>
+              `}
+              <button onclick="openLineQrModal('${escapeHtml(inst.name)}')" class="btn ${isOpen ? 'btn-secondary' : 'btn-primary'}" style="padding: 4px 9px; font-size: 11px;">
+                ${isOpen ? 'Session / Disconnect' : 'Connect QR'}
+              </button>
+              ${!inst.isPrimary ? `
+                <button onclick="confirmRemoveLine('${escapeHtml(inst.name)}')" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px; margin-left: auto;" title="Remove this line from business">
+                  ✕ Remove
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function switchToInstance(instName) {
+      currentInstance = instName;
+      const select = document.getElementById('instanceSelect');
+      if (select) select.value = instName;
+      onInstanceChanged();
+    }
+
+    function openLineQrModal(instName) {
+      switchToInstance(instName);
+      openQrModal();
+    }
+
+    async function confirmRemoveLine(instName) {
+      if (!confirm(`Are you sure you want to remove the secondary line "${instName}" from this business?\n\nThis will disconnect its WhatsApp session.`)) return;
+      try {
+        await apiRequest(`/business/lines/${encodeURIComponent(instName)}`, { method: 'DELETE' });
+        showToast(`Line "${instName}" removed successfully`);
+        await loadInstances();
+        onInstanceChanged();
+      } catch (err) {
+        showToast(err.message || 'Failed to remove line', true);
+      }
+    }
+
+    function openAddLineModal() {
+      document.getElementById('newLineName').value = '';
+      document.getElementById('newLineInstance').value = '';
+      document.getElementById('newLinePhone').value = '';
+      openModal('addLineModal');
+      setTimeout(() => document.getElementById('newLineName').focus(), 100);
+    }
+
+    function autoSlugLineName() {
+      const name = document.getElementById('newLineName').value.trim();
+      const baseInst = currentInstance ? currentInstance.replace(/_[a-z0-9]+$/, '') : 'biz';
+      const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+      if (slug) {
+        document.getElementById('newLineInstance').value = `${baseInst}_${slug}`;
+      }
+    }
+
+    async function submitAddLine(e) {
+      e.preventDefault();
+      const lineName = document.getElementById('newLineName').value.trim();
+      const instanceName = document.getElementById('newLineInstance').value.trim();
+      const number = document.getElementById('newLinePhone').value.trim();
+      const btn = document.getElementById('btnSubmitAddLine');
+
+      if (!lineName || !instanceName) {
+        return showToast('Line name and instance identifier are required', true);
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = 'Creating Line...';
+
+      try {
+        const res = await apiRequest('/business/add-line', {
+          method: 'POST',
+          body: JSON.stringify({
+            primaryInstanceName: currentInstance,
+            lineName,
+            instanceName,
+            number: number || undefined,
+          }),
+        });
+
+        closeModal('addLineModal');
+        showToast(res.message || 'New WhatsApp line added to business!');
+
+        // Reload instances and switch to new line
+        await loadInstances();
+        switchToInstance(instanceName);
+
+        // Open QR code modal immediately for easy scanning
+        setTimeout(() => {
+          openQrModal();
+        }, 350);
+      } catch (err) {
+        showToast(err.message || 'Failed to add line', true);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>➕</span> Create & Link WhatsApp';
       }
     }
 
@@ -3384,6 +3609,7 @@
       currentInstance = document.getElementById('instanceSelect').value;
       const found = instancesList.find(i => i.name === currentInstance);
       if (found) updateConnectionBadge(found);
+      renderBusinessLinesCard();
 
       // Reload active tab
       const activeTab = document.querySelector('.view-content.active').id.replace('tab-', '');

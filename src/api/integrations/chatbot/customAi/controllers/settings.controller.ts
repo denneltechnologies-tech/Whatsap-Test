@@ -8,7 +8,7 @@ import {
   DEFAULT_CUSTOM_INSTRUCTIONS,
   DEFAULT_CUSTOM_RESTRICTIONS,
 } from '../services/customAi.service';
-import { normalizeWhatsAppNumber } from '../utils/phone.util';
+import { normalizeWhatsAppNumber, normalizeWhatsAppNumbers } from '../utils/phone.util';
 
 export class SettingsController {
   private readonly logger = new Logger('SettingsController');
@@ -132,42 +132,41 @@ export class SettingsController {
       throw new BadRequestException('Please provide a WhatsApp phone number to test');
     }
 
-    const adminDigits = normalizeWhatsAppNumber(targetPhone);
-    if (!adminDigits || adminDigits.length < 8) {
-      throw new BadRequestException('Phone number must contain at least 8 digits with country code');
+    const adminNumbers = normalizeWhatsAppNumbers(targetPhone);
+    if (adminNumbers.length === 0) {
+      throw new BadRequestException('Phone number(s) must contain at least 8 digits with country code');
     }
 
-    const testMessage =
-      `🔔 *[Dennel Tech WhatsApp AI Assistant]*\n` +
-      `*Test Notification Received!*\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `🏢 *Business:* ${config.businessName || instanceName}\n` +
-      `⏰ *Time:* ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}\n\n` +
-      `✅ *Success!* Your WhatsApp takeover notifications are configured properly. When a customer requires human attention, an alert will be sent to this number (+${adminDigits}) automatically.`;
+    const sentNumbers: string[] = [];
+    const failedNumbers: string[] = [];
 
-    try {
-      await this.customAiService.sendWhatsAppReply(instanceName, `${adminDigits}@s.whatsapp.net`, testMessage);
-    } catch (err: any) {
-      this.logger.error(`Failed to send test alert to ${adminDigits}: ${err?.message || err}`);
-      let errorMsg = 'Failed to deliver message via WhatsApp';
+    for (const adminDigits of adminNumbers) {
+      const testMessage =
+        `🔔 *[Dennel Tech WhatsApp AI Assistant]*\n` +
+        `*Test Notification Received!*\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `🏢 *Business:* ${config.businessName || instanceName}\n` +
+        `⏰ *Time:* ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}\n\n` +
+        `✅ *Success!* Your WhatsApp takeover notifications are configured properly. When a customer requires human attention, an alert will be sent to this number (+${adminDigits}) automatically.`;
 
-      if (err?.response && typeof err.response === 'object') {
-        if (err.response.exists === false) {
-          errorMsg = `The phone number +${adminDigits} is not registered on WhatsApp. Please check the country code and digits.`;
-        } else if (err.response.message) {
-          errorMsg = Array.isArray(err.response.message) ? err.response.message.join(', ') : String(err.response.message);
-        } else if (err.response.error) {
-          errorMsg = String(err.response.error);
-        }
-      } else if (err?.message) {
-        errorMsg = typeof err.message === 'string' ? err.message : JSON.stringify(err.message);
+      try {
+        await this.customAiService.sendWhatsAppReply(instanceName, `${adminDigits}@s.whatsapp.net`, testMessage);
+        sentNumbers.push(`+${adminDigits}`);
+      } catch (err: any) {
+        this.logger.error(`Failed to send test alert to ${adminDigits}: ${err?.message || err}`);
+        failedNumbers.push(`+${adminDigits}`);
       }
+    }
 
-      throw new BadRequestException(errorMsg);
+    if (sentNumbers.length === 0) {
+      throw new BadRequestException(`Failed to deliver message via WhatsApp to ${failedNumbers.join(', ')}`);
     }
 
     return {
-      message: `Test alert sent successfully to +${adminDigits} via WhatsApp!`,
+      message: `Test alert sent successfully to ${sentNumbers.join(', ')} via WhatsApp!${
+        failedNumbers.length > 0 ? ` (Failed: ${failedNumbers.join(', ')})` : ''
+      }`,
+      recipients: sentNumbers,
     };
   }
 }

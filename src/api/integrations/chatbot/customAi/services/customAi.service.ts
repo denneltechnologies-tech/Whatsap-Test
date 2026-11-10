@@ -8,7 +8,7 @@ import axios from 'axios';
 
 import { DeduplicationService } from './deduplication.service';
 import { RagService } from './rag.service';
-import { normalizeWhatsAppNumber } from '../utils/phone.util';
+import { normalizeWhatsAppNumber, normalizeWhatsAppNumbers } from '../utils/phone.util';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -68,6 +68,58 @@ export class CustomAiService {
     });
 
     if (!config) {
+      // Check if this instance is a secondary line linked to a primary business instance
+      const currentInst = await this.prismaRepository.instance.findUnique({
+        where: { id: instanceId },
+        select: { businessId: true, name: true },
+      });
+
+      let parentConfig: AiAssistantConfig | null = null;
+      if (currentInst?.businessId) {
+        parentConfig = await this.prismaRepository.aiAssistantConfig.findUnique({
+          where: { instanceId: currentInst.businessId },
+        });
+      }
+
+      if (parentConfig) {
+        // Inherit everything from primary business instance
+        config = await this.prismaRepository.aiAssistantConfig.create({
+          data: {
+            instanceId,
+            enabled: parentConfig.enabled,
+            assistantName: parentConfig.assistantName,
+            businessName: parentConfig.businessName,
+            businessDescription: parentConfig.businessDescription,
+            businessHours: parentConfig.businessHours,
+            supportedLanguages: parentConfig.supportedLanguages,
+            tonePreset: parentConfig.tonePreset,
+            customInstructions: parentConfig.customInstructions,
+            customRestrictions: parentConfig.customRestrictions,
+            autoResumeMinutes: parentConfig.autoResumeMinutes,
+            autoResumeMessage: parentConfig.autoResumeMessage,
+            systemPrompt: parentConfig.systemPrompt,
+            fallbackResponse: parentConfig.fallbackResponse,
+            humanTakeoverKeywords: parentConfig.humanTakeoverKeywords,
+            adminNotificationPhone: parentConfig.adminNotificationPhone,
+            notifyOnTakeover: parentConfig.notifyOnTakeover,
+            provider: parentConfig.provider,
+            model: parentConfig.model,
+            apiUrl: parentConfig.apiUrl,
+            apiKey: parentConfig.apiKey,
+            temperature: parentConfig.temperature,
+            maxTokens: parentConfig.maxTokens,
+            embeddingProvider: parentConfig.embeddingProvider,
+            embeddingModel: parentConfig.embeddingModel,
+            embeddingApiUrl: parentConfig.embeddingApiUrl,
+            embeddingApiKey: parentConfig.embeddingApiKey,
+            ragTopK: parentConfig.ragTopK,
+            ragMinScore: parentConfig.ragMinScore,
+            maxContextMessages: parentConfig.maxContextMessages,
+          },
+        });
+        return config;
+      }
+
       const env = this.configService.get<CustomAiEnv>('CUSTOM_AI');
 
       let defaultApiKey = env?.API_KEY || '';
@@ -484,9 +536,10 @@ export class CustomAiService {
         content: effectiveText,
       });
 
-      // 8. Retrieve relevant business knowledge (RAG)
+      // 8. Retrieve relevant business knowledge (RAG) across all lines for this business
+      const businessInstanceIds = await this.getBusinessInstanceIds(instanceId);
       const retrievedChunks = await this.ragService.retrieveRelevantChunks(
-        instanceId,
+        businessInstanceIds,
         effectiveText,
         config.ragTopK || 4,
         config.ragMinScore || 0.35,
@@ -869,7 +922,40 @@ export class CustomAiService {
   }
 
   /**
-   * Dispatches a WhatsApp notification alert to the configured manager phone number
+   * Resolves all instance IDs belonging to the same business (primary + linked lines)
+   * so they share the exact same Knowledge Base.
+   */
+  public async getBusinessInstanceIds(instanceId: string): Promise<string[]> {
+    try {
+      const currentInst = await this.prismaRepository.instance.findUnique({
+        where: { id: instanceId },
+        select: { id: true, businessId: true },
+      });
+
+      if (!currentInst) return [instanceId];
+
+      const primaryInstanceId = currentInst.businessId || currentInst.id;
+
+      const linkedInstances = await this.prismaRepository.instance.findMany({
+        where: {
+          OR: [
+            { id: primaryInstanceId },
+            { businessId: primaryInstanceId },
+          ],
+        },
+        select: { id: true },
+      });
+
+      const ids = Array.from(new Set([instanceId, primaryInstanceId, ...linkedInstances.map((i) => i.id)]));
+      return ids;
+    } catch (err: any) {
+      this.logger.warn(`Could not resolve business instance IDs for ${instanceId}: ${err?.message || err}`);
+      return [instanceId];
+    }
+  }
+
+  /**
+   * Dispatches a WhatsApp notification alert to the configured manager phone number(s)
    * when a customer requests human takeover or flags attention
    */
   public async sendAdminTakeoverAlert(
@@ -888,9 +974,9 @@ export class CustomAiService {
         return;
       }
 
-      const adminDigits = normalizeWhatsAppNumber(config.adminNotificationPhone);
-      if (!adminDigits || adminDigits.length < 8) {
-        this.logger.warn(`Admin notification phone '${config.adminNotificationPhone}' is invalid`);
+      const adminNumbers = normalizeWhatsAppNumbers(config.adminNotificationPhone);
+      if (adminNumbers.length === 0) {
+        this.logger.warn(`Admin notification phone '${config.adminNotificationPhone}' is invalid or empty`);
         return;
       }
 
@@ -909,9 +995,11 @@ export class CustomAiService {
         `💬 *Message:* "${triggerMessage || 'Customer requested human agent'}"\n\n` +
         `⚠️ *Action Required:* Auto-replies are paused for this customer. Please assist them now via WhatsApp or the dashboard.`;
 
-      const targetJid = `${adminDigits}@s.whatsapp.net`;
-      await this.sendWhatsAppReply(instanceName, targetJid, alertText);
-      this.logger.info(`Takeover alert dispatched successfully to WhatsApp +${adminDigits} for customer ${displayName}`);
+      for (const adminDigits of adminNumbers) {
+        const targetJid = `${adminDigits}@s.whatsapp.net`;
+        await this.sendWhatsAppReply(instanceName, targetJid, alertText);
+        this.logger.info(`Takeover alert dispatched successfully to WhatsApp +${adminDigits} for customer ${displayName}`);
+      }
     } catch (err: any) {
       this.logger.error(`Failed to send admin takeover alert: ${err.message}`);
     }

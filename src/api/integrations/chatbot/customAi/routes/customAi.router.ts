@@ -49,7 +49,7 @@ export class CustomAiRouter {
    * - If user is a superadmin, they can access any instance.
    */
   private adminAuthMiddleware(): RequestHandler {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction) => {
       const globalKey = this.configService.get<Auth>('AUTHENTICATION')?.API_KEY?.KEY;
       const adminPassword = this.configService.get<CustomAiEnv>('CUSTOM_AI')?.ADMIN_PASSWORD;
 
@@ -84,11 +84,14 @@ export class CustomAiRouter {
             const requestedInstance =
               req.params.instanceName || (req.query.instanceName as string) || req.body?.instanceName;
 
-            // If a specific instance is targeted, ensure it matches the tenant's instance
+            // If a specific instance is targeted, ensure it matches the tenant's instance or a linked business line
             if (requestedInstance && requestedInstance !== decoded.instanceName) {
-              return res.status(403).json({
-                error: 'Forbidden: You do not have permission to access or modify this business instance',
-              });
+              const allowed = await this.isInstanceAllowedForTenant(decoded, requestedInstance);
+              if (!allowed) {
+                return res.status(403).json({
+                  error: 'Forbidden: You do not have permission to access or modify this business instance',
+                });
+              }
             }
           }
 
@@ -104,6 +107,27 @@ export class CustomAiRouter {
 
       return res.status(401).json({ error: 'Unauthorized: Invalid or missing authentication token' });
     };
+  }
+
+  private async isInstanceAllowedForTenant(decoded: any, requestedInstance: string): Promise<boolean> {
+    if (decoded.instanceName === requestedInstance) return true;
+    try {
+      const targetInst = await this.prismaRepository.instance.findUnique({
+        where: { name: requestedInstance },
+        select: { id: true, businessId: true },
+      });
+      if (!targetInst) return false;
+
+      const primaryInst = await this.prismaRepository.instance.findUnique({
+        where: { name: decoded.instanceName },
+        select: { id: true },
+      });
+      if (!primaryInst) return false;
+
+      return targetInst.businessId === primaryInst.id || targetInst.id === primaryInst.id;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -233,6 +257,7 @@ export class CustomAiRouter {
           select: {
             id: true,
             name: true,
+            businessId: true,
             connectionStatus: true,
             number: true,
             profileName: true,
@@ -248,6 +273,7 @@ export class CustomAiRouter {
             ...inst,
             state: live?.connectionStatus?.state || inst.connectionStatus,
             qr: live?.connectionStatus?.qrcode,
+            isPrimary: !inst.businessId,
           };
         });
 
@@ -266,6 +292,7 @@ export class CustomAiRouter {
               {
                 id: 'default',
                 name: 'default',
+                businessId: null,
                 connectionStatus: live?.connectionStatus?.state || 'connecting',
                 number: null,
                 profileName: 'Default',
@@ -273,6 +300,7 @@ export class CustomAiRouter {
                 updatedAt: new Date(),
                 state: live?.connectionStatus?.state || 'connecting',
                 qr: live?.connectionStatus?.qrcode,
+                isPrimary: true,
               },
             ];
           } catch (autoErr: any) {
@@ -280,10 +308,17 @@ export class CustomAiRouter {
           }
         }
 
-        // If requester is a tenant user, restrict instances list to only their assigned instance
+        // If requester is a tenant user, return all lines belonging to their business
         const user = (req as any).user;
         if (user && user.role === 'tenant' && user.instanceName) {
-          enriched = enriched.filter((i) => i.name === user.instanceName);
+          const primaryInst = instances.find((i) => i.name === user.instanceName);
+          const primaryId = primaryInst?.id || user.instanceId;
+
+          enriched = enriched.filter((i) => {
+            if (i.name === user.instanceName) return true;
+            const dbInst = instances.find((raw: any) => raw.name === i.name);
+            return dbInst?.businessId && (dbInst.businessId === primaryId || dbInst.businessId === user.instanceId);
+          });
         }
 
         return res.json(enriched);
@@ -525,6 +560,53 @@ export class CustomAiRouter {
         return res.status(500).json({ error: 'Instance controller not available' });
       } catch (err: any) {
         return res.status(500).json({ error: err.message });
+      }
+    });
+
+    // 4e. Add a new WhatsApp Line to a Business (Connected to shared knowledge base)
+    this.router.post('/business/add-line', auth, async (req: Request, res: Response) => {
+      try {
+        if (!this.tenantController) {
+          return res.status(500).json({ error: 'Tenant controller not initialized' });
+        }
+        const user = (req as any).user;
+        let primaryInstanceName = req.body.primaryInstanceName;
+        if (user?.role === 'tenant' && user.instanceName) {
+          primaryInstanceName = user.instanceName;
+        }
+        if (!primaryInstanceName) {
+          return res.status(400).json({ error: 'Primary instance name required' });
+        }
+        const result = await this.tenantController.addLineToBusiness({
+          primaryInstanceName,
+          lineName: req.body.lineName,
+          instanceName: req.body.instanceName,
+          number: req.body.number,
+        });
+        return res.status(201).json(result);
+      } catch (err: any) {
+        return res.status(err.status || 400).json({ error: err.message });
+      }
+    });
+
+    // 4f. Remove a secondary Line from a Business
+    this.router.delete('/business/lines/:instanceName', auth, async (req: Request, res: Response) => {
+      try {
+        if (!this.tenantController) {
+          return res.status(500).json({ error: 'Tenant controller not initialized' });
+        }
+        const user = (req as any).user;
+        const lineNameToRemove = req.params.instanceName;
+        const primaryInstanceName = user?.role === 'tenant' ? user.instanceName : (req.query.primaryInstanceName as string);
+
+        if (!primaryInstanceName) {
+          return res.status(400).json({ error: 'Primary instance name required' });
+        }
+
+        const result = await this.tenantController.removeLineFromBusiness(primaryInstanceName, lineNameToRemove);
+        return res.json(result);
+      } catch (err: any) {
+        return res.status(err.status || 400).json({ error: err.message });
       }
     });
 
