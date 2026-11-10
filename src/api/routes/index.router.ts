@@ -223,6 +223,12 @@ router
   .use((req, res, next) => telemetry.collectTelemetry(req, res, next))
 
   .get('/', async (req, res) => {
+    // If opened in a web browser, redirect automatically to the visual AI Dashboard
+    const acceptsHtml = req.headers.accept && req.headers.accept.includes('text/html');
+    if (acceptsHtml && !req.xhr) {
+      return res.redirect('/dashboard');
+    }
+
     res.status(HttpStatus.OK).json({
       status: HttpStatus.OK,
       message: 'Welcome to the Evolution API with Custom AI Chatbot, it is working!',
