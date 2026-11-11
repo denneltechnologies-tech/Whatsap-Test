@@ -1460,6 +1460,12 @@
         display: none !important;
       }
 
+      #businessSelect {
+        width: 120px !important;
+        padding: 4px 6px !important;
+        font-size: 11px !important;
+      }
+
       #instanceSelect {
         width: 110px !important;
         padding: 4px 6px !important;
@@ -1841,6 +1847,11 @@
         padding: 2px 5px !important;
       }
 
+      #businessSelect {
+        width: 105px !important;
+        font-size: 10.5px !important;
+      }
+
       #instanceSelect {
         width: 95px !important;
         font-size: 10.5px !important;
@@ -1974,12 +1985,34 @@
         <button id="btnToggleSidebar" onclick="toggleSidebar()" class="btn btn-secondary" style="padding: 4px 8px; font-size: 13px; line-height: 1;" title="Collapse/Expand Menu">
           <span>☰</span>
         </button>
-        <div class="instance-selector" id="topbarInstanceSelectorWrapper">
-          <label style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Line:</label>
-          <select id="instanceSelect" class="form-select" style="min-width: 140px; max-width: 220px; padding: 4px 8px; font-size: 11.5px;" onchange="onInstanceChanged()">
-            <option value="">Loading...</option>
-          </select>
-          <button id="btnTopAddLine" onclick="openAddLineModal()" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" title="Add another WhatsApp number/line for this business">
+        <div class="instance-selector" id="topbarInstanceSelectorWrapper" style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
+          <!-- Business Selector (For Super Admin) or Business Badge (For Tenant) -->
+          <div id="topbarBusinessGroup" style="display: flex; align-items: center; gap: 5px;">
+            <label id="topbarBizLabel" style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 700; display: flex; align-items: center; gap: 3px;">
+              <span>🏢</span> <span>Business:</span>
+            </label>
+            <select id="businessSelect" class="form-select" style="min-width: 140px; max-width: 220px; padding: 4px 8px; font-size: 11.5px; font-weight: 600; color: #fff; background: rgba(30, 41, 59, 0.9); border-color: rgba(59, 130, 246, 0.4);" onchange="onBusinessChanged()">
+              <option value="">Loading...</option>
+            </select>
+            <div id="tenantBusinessBadge" style="display: none; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #93c5fd; background: rgba(59, 130, 246, 0.15); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.3);">
+              <span>🏢</span> <span id="tenantBusinessNameText">My Business</span>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.15);"></div>
+
+          <!-- WhatsApp Line Selector -->
+          <div id="topbarLineGroup" style="display: flex; align-items: center; gap: 5px;">
+            <label id="topbarLineLabel" style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 700; display: flex; align-items: center; gap: 3px;">
+              <span>📱</span> <span>Line:</span>
+            </label>
+            <select id="instanceSelect" class="form-select" style="min-width: 130px; max-width: 200px; padding: 4px 8px; font-size: 11.5px;" onchange="onInstanceChanged()">
+              <option value="">Loading...</option>
+            </select>
+          </div>
+
+          <button id="btnTopAddLine" onclick="openAddLineModal()" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" title="Add another WhatsApp number/line under this business">
             <span>➕</span> <span>Add Line</span>
           </button>
           <div id="connectionBadge" class="status-badge closed">
@@ -2012,9 +2045,28 @@
 
     <!-- VIEW 1: Dashboard Overview -->
     <div id="tab-dashboard" class="view-content active">
-      <div class="view-header">
-        <h2>Dashboard Overview</h2>
-        <p>Live health, AI agent statistics, and WhatsApp activity.</p>
+      <!-- Active Business Banner -->
+      <div id="activeBusinessOverviewBanner" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(59, 130, 246, 0.15); display: flex; align-items: center; justify-content: center; font-size: 22px; border: 1px solid rgba(59, 130, 246, 0.35);">
+            🏢
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <h2 id="overviewBizTitle" style="font-size: 18px; font-weight: 700; color: #fff; margin: 0;">Business Overview</h2>
+              <span id="overviewBizLineCountBadge" class="badge-tag" style="background: rgba(16, 185, 129, 0.2); color: #86efac; font-size: 11px; font-weight: 700;">1 Line</span>
+              <span class="badge-tag" style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; font-size: 10.5px;">Shared AI Knowledge Base</span>
+            </div>
+            <p id="overviewBizDesc" style="font-size: 12px; color: var(--text-muted); margin: 3px 0 0 0;">
+              All phone lines under this business automatically share the same Knowledge Base, documents, and AI Persona.
+            </p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button onclick="openAddLineModal()" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600;">
+            <span>➕</span> <span>Add WhatsApp Line to This Business</span>
+          </button>
+        </div>
       </div>
 
       <div class="stats-grid">
@@ -2045,14 +2097,14 @@
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
           <div>
             <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
-              <span>📱</span> Connected WhatsApp Numbers (Shared Knowledge Base)
+              <span>📱</span> Connected WhatsApp Numbers for <span id="overviewBizLinesTitle" style="color: var(--primary);">This Business</span>
             </h3>
             <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-              All phone numbers connected here share the <strong>exact same company knowledge base</strong> and AI persona.
+              All phone numbers connected below belong to this business and answer using the <strong>exact same company knowledge base</strong> and AI persona.
             </p>
           </div>
           <button onclick="openAddLineModal()" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
-            <span>➕</span> Add Another WhatsApp Number
+            <span>➕</span> Add WhatsApp Line
           </button>
         </div>
         <div id="businessLinesContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; padding: 14px 20px 20px;">
@@ -2613,8 +2665,17 @@
       </div>
 
       <form id="addLineForm" onsubmit="submitAddLine(event)" style="padding: 20px;">
-        <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 16px; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
-          💡 <strong>Shared Knowledge:</strong> This new phone number will automatically share your company's existing <strong>Knowledge Base, Documents, and AI Persona</strong>. Customers messaging this number will get answers from the same business knowledge.
+        <input type="hidden" id="newLineTargetPrimaryInstance" value="">
+
+        <!-- Target Business Box -->
+        <div style="background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 16px;">
+          <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Target Business</div>
+          <div id="newLineTargetBusinessDisplay" style="font-size: 16px; font-weight: 700; color: #fff; margin-top: 3px; display: flex; align-items: center; gap: 6px;">
+            <span>🏢</span> <span>Business Workspace</span>
+          </div>
+          <div style="font-size: 12px; color: #93c5fd; margin-top: 6px; line-height: 1.4;">
+            💡 <strong>Shared Knowledge Base:</strong> This new phone number will belong to this business and automatically use its <strong>Knowledge Documents, Training Data, and AI Persona</strong>.
+          </div>
         </div>
 
         <div class="form-group" style="margin-bottom: 14px;">
@@ -2867,6 +2928,8 @@
     } catch (e) {
       currentUser = null;
     }
+    let currentBusiness = '';
+    let currentBusinessPrimaryInstance = '';
     let currentInstance = '';
     let instancesList = [];
     let conversationsData = [];
@@ -3098,9 +3161,15 @@
         brandSidebarSubtitle.textContent = isSuper ? 'Multi-Tenant Master' : 'WhatsApp AI Workspace';
       }
 
-      // If tenant, instance is strictly their own
-      if (!isSuper && currentUser.instanceName) {
-        currentInstance = currentUser.instanceName;
+      // If tenant, business and instance are strictly their own
+      if (!isSuper) {
+        if (currentUser.businessName) {
+          currentBusiness = currentUser.businessName;
+        }
+        if (currentUser.instanceName) {
+          currentBusinessPrimaryInstance = currentUser.instanceName;
+          currentInstance = currentUser.instanceName;
+        }
       }
     }
 
@@ -3227,42 +3296,60 @@
           ? `<span class="badge-tag" style="background: rgba(239,68,68,0.2); color: var(--danger);">Suspended</span>`
           : `<span class="badge-tag" style="background: rgba(16,185,129,0.2); color: var(--success);">Active</span>`;
 
+        const linesCount = t.linesCount || (t.lines ? t.lines.length : 1);
+        const linesListDisplay = (t.lines && t.lines.length > 0)
+          ? t.lines.map(l => `<span style="font-size: 11px; color: ${l.state === 'open' ? '#86efac' : 'var(--text-dim)'};">${escapeHtml(l.lineName || l.name)}</span>`).join(', ')
+          : escapeHtml(t.instanceName);
+
         return `
           <tr>
             <td>
-              <div style="font-weight: 600; font-size: 13.5px; color: #fff;">${escapeHtml(t.businessName)}</div>
-              <div style="font-size: 11px; color: var(--text-dim);">Created ${new Date(t.createdAt).toLocaleDateString()}</div>
+              <div style="font-weight: 700; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                <span>🏢</span> <span>${escapeHtml(t.businessName)}</span>
+              </div>
+              <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Created ${new Date(t.createdAt).toLocaleDateString()}</div>
             </td>
             <td>
               <span style="font-size: 13px; color: var(--text-muted);">${escapeHtml(t.email)}</span>
             </td>
             <td>
-              <code style="background: rgba(255,255,255,0.06); padding: 3px 6px; border-radius: 4px; font-size: 12px; color: var(--primary);">
-                ${escapeHtml(t.instanceName)}
-              </code>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span class="badge-tag" style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; font-weight: 700; font-size: 11px;">
+                    📱 ${linesCount} Line${linesCount === 1 ? '' : 's'}
+                  </span>
+                  ${waStatusBadge}
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  ${linesListDisplay}
+                </div>
+              </div>
             </td>
             <td>${waStatusBadge}</td>
             <td style="font-weight: 600;">${t.totalConversations ?? 0}</td>
             <td style="font-weight: 600; color: var(--primary);">${t.totalAiReplies ?? 0}</td>
             <td>${statusBadge}</td>
             <td style="text-align: right; white-space: nowrap;">
-              <button onclick="switchTenantWorkspace('${escapeHtml(t.instanceName)}')" class="btn btn-primary" style="padding: 4px 10px; font-size: 11.5px; margin-right: 4px;" title="Switch dashboard context to this business">
-                Access Workspace ➔
+              <button onclick="openBusinessWorkspace('${escapeHtml(t.businessName)}', '${escapeHtml(t.instanceName)}')" class="btn btn-primary" style="padding: 5px 12px; font-size: 11.5px; margin-right: 5px; font-weight: 600;" title="Open this business dashboard and view its WhatsApp lines">
+                🏢 Open Business ➔
+              </button>
+              <button onclick="openAddLineModal('${escapeHtml(t.businessName)}', '${escapeHtml(t.instanceName)}')" class="btn btn-secondary" style="padding: 5px 10px; font-size: 11.5px; margin-right: 5px; color: #93c5fd; border-color: rgba(59, 130, 246, 0.35);" title="Add another WhatsApp line under this business">
+                ➕ Add Line
               </button>
               ${isOnline ? `
                 <button onclick="confirmDisconnectWhatsApp('${escapeHtml(t.instanceName)}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11.5px; margin-right: 4px; color: #fca5a5; border-color: rgba(239, 68, 68, 0.35);" title="Disconnect WhatsApp & Link a Different Number">
-                  🔌 Disconnect
+                  🔌
                 </button>
               ` : `
                 <button onclick="connectTenantWhatsApp('${escapeHtml(t.instanceName)}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11.5px; margin-right: 4px; color: #86efac; border-color: rgba(16, 185, 129, 0.35);" title="Connect WhatsApp Number">
-                  📱 Connect
+                  📱
                 </button>
               `}
               <button onclick="openResetPasswordModal('${t.id}', '${escapeHtml(t.email)}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11.5px; margin-right: 4px;" title="Reset Password">
                 🔑
               </button>
               <button onclick="toggleTenantStatus('${t.id}', '${t.status}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11.5px; margin-right: 4px; color: ${isSuspended ? 'var(--success)' : 'var(--warning)'};" title="${isSuspended ? 'Activate' : 'Suspend'}">
-                ${isSuspended ? '▶ Activate' : '⏸ Suspend'}
+                ${isSuspended ? '▶' : '⏸'}
               </button>
               <button onclick="deleteTenantAccount('${t.id}', '${escapeHtml(t.businessName)}')" class="btn btn-danger" style="padding: 4px 8px; font-size: 11.5px;" title="Delete Business">
                 ✕
@@ -3325,6 +3412,10 @@
         showToast(res.message || 'Business account created successfully!');
         await loadTenants();
         await loadInstances();
+
+        // Switch to the newly created business
+        const createdInst = res.tenant?.instanceName || instanceName || businessName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        openBusinessWorkspace(businessName, createdInst);
       } catch (err) {
         showToast(`Failed to onboard: ${err.message}`, true);
       } finally {
@@ -3333,13 +3424,226 @@
       }
     }
 
-    function switchTenantWorkspace(instanceName) {
-      currentInstance = instanceName;
-      const select = document.getElementById('instanceSelect');
-      if (select) select.value = instanceName;
+    // Business & Line Scoping Helpers
+    function getBusinessesList() {
+      const map = new Map();
+
+      // 1. Ingest from tenantsList
+      if (tenantsList && tenantsList.length > 0) {
+        tenantsList.forEach(t => {
+          const bizKey = t.businessName || t.instanceName;
+          if (!map.has(bizKey)) {
+            map.set(bizKey, {
+              businessName: t.businessName || t.instanceName,
+              primaryInstanceName: t.instanceName,
+              linesCount: t.linesCount || (t.lines ? t.lines.length : 1),
+            });
+          }
+        });
+      }
+
+      // 2. Ingest from instancesList
+      if (instancesList && instancesList.length > 0) {
+        instancesList.forEach(inst => {
+          const bizName = inst.businessName || inst.primaryInstanceName || inst.name;
+          const primaryName = inst.primaryInstanceName || (inst.isPrimary ? inst.name : inst.name);
+          if (!map.has(bizName)) {
+            map.set(bizName, {
+              businessName: bizName,
+              primaryInstanceName: primaryName,
+              linesCount: 0,
+            });
+          }
+        });
+      }
+
+      // Recalculate accurate line counts for each business
+      map.forEach((val, key) => {
+        const lines = instancesList.filter(inst => {
+          const matchBiz = (inst.businessName && inst.businessName.toLowerCase() === val.businessName.toLowerCase());
+          const matchPrimary = (inst.primaryInstanceName && inst.primaryInstanceName.toLowerCase() === val.primaryInstanceName.toLowerCase());
+          const matchDirect = (!inst.businessId && inst.name.toLowerCase() === val.primaryInstanceName.toLowerCase());
+          return matchBiz || matchPrimary || matchDirect;
+        });
+        if (lines.length > 0) {
+          val.linesCount = lines.length;
+        }
+      });
+
+      return Array.from(map.values());
+    }
+
+    function populateBusinessSelector() {
+      const bizSelect = document.getElementById('businessSelect');
+      const tenantBadge = document.getElementById('tenantBusinessBadge');
+      const tenantText = document.getElementById('tenantBusinessNameText');
+      const bizLabel = document.getElementById('topbarBizLabel');
+
+      const isSuper = currentUser?.role === 'superadmin';
+
+      if (!isSuper) {
+        // Tenant account: Fixed business badge
+        if (bizSelect) bizSelect.style.display = 'none';
+        if (bizLabel) bizLabel.style.display = 'none';
+        if (tenantBadge) {
+          tenantBadge.style.display = 'inline-flex';
+          if (tenantText) tenantText.textContent = currentUser?.businessName || currentInstance || 'My Business';
+        }
+        currentBusiness = currentUser?.businessName || currentInstance;
+        currentBusinessPrimaryInstance = currentUser?.instanceName || currentInstance;
+        return;
+      }
+
+      // Superadmin: Selectable business dropdown
+      if (tenantBadge) tenantBadge.style.display = 'none';
+      if (bizLabel) bizLabel.style.display = 'inline-flex';
+      if (!bizSelect) return;
+
+      bizSelect.style.display = 'inline-block';
+      const businesses = getBusinessesList();
+      bizSelect.innerHTML = '';
+
+      if (businesses.length === 0) {
+        bizSelect.innerHTML = '<option value="">No businesses</option>';
+        return;
+      }
+
+      businesses.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.businessName;
+        const countTag = b.linesCount ? ` (${b.linesCount} Line${b.linesCount === 1 ? '' : 's'})` : '';
+        opt.textContent = `${b.businessName}${countTag}`;
+        bizSelect.appendChild(opt);
+      });
+
+      if (!currentBusiness || !businesses.some(b => b.businessName.toLowerCase() === currentBusiness.toLowerCase())) {
+        currentBusiness = businesses[0].businessName;
+        currentBusinessPrimaryInstance = businesses[0].primaryInstanceName;
+      } else {
+        const found = businesses.find(b => b.businessName.toLowerCase() === currentBusiness.toLowerCase());
+        if (found) currentBusinessPrimaryInstance = found.primaryInstanceName;
+      }
+
+      bizSelect.value = currentBusiness;
+    }
+
+    function populateLineSelectorForCurrentBusiness() {
+      const lineSelect = document.getElementById('instanceSelect');
+      if (!lineSelect) return;
+
+      lineSelect.innerHTML = '';
+
+      const lines = instancesList.filter(inst => {
+        const matchBiz = (inst.businessName && currentBusiness && inst.businessName.toLowerCase() === currentBusiness.toLowerCase());
+        const matchPrimary = (inst.primaryInstanceName && currentBusinessPrimaryInstance && inst.primaryInstanceName.toLowerCase() === currentBusinessPrimaryInstance.toLowerCase());
+        const matchDirect = (!inst.businessId && currentBusinessPrimaryInstance && inst.name.toLowerCase() === currentBusinessPrimaryInstance.toLowerCase());
+        return matchBiz || matchPrimary || matchDirect;
+      });
+
+      if (lines.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = currentBusinessPrimaryInstance || currentInstance || 'default';
+        opt.textContent = `${currentBusinessPrimaryInstance || 'Default'} (No lines)`;
+        lineSelect.appendChild(opt);
+        currentInstance = opt.value;
+        return;
+      }
+
+      lines.forEach(inst => {
+        const opt = document.createElement('option');
+        opt.value = inst.name;
+        const statusText = inst.state === 'open' ? 'Connected' : (inst.state === 'connecting' ? 'Connecting...' : 'Disconnected');
+        const primaryTag = inst.isPrimary ? ' ⭐' : '';
+        const label = inst.profileName || (inst.isPrimary ? 'Main Line' : inst.name);
+        opt.textContent = `${label} (${statusText})${primaryTag}`;
+        lineSelect.appendChild(opt);
+      });
+
+      if (!currentInstance || !lines.some(l => l.name === currentInstance)) {
+        const primary = lines.find(l => l.isPrimary);
+        currentInstance = primary ? primary.name : lines[0].name;
+      }
+
+      lineSelect.value = currentInstance;
+      const currentMeta = lines.find(l => l.name === currentInstance);
+      updateConnectionBadge(currentMeta || { state: 'closed' });
+    }
+
+    function onBusinessChanged() {
+      const bizSelect = document.getElementById('businessSelect');
+      if (!bizSelect) return;
+
+      currentBusiness = bizSelect.value;
+      const businesses = getBusinessesList();
+      const found = businesses.find(b => b.businessName.toLowerCase() === currentBusiness.toLowerCase());
+      if (found) {
+        currentBusinessPrimaryInstance = found.primaryInstanceName;
+      }
+
+      populateLineSelectorForCurrentBusiness();
+      updateBusinessOverviewHeader();
+      renderBusinessLinesCard();
       onInstanceChanged();
+
+      showToast(`Switched active business to: ${currentBusiness}`);
+    }
+
+    function openBusinessWorkspace(bizName, primaryInst) {
+      currentBusiness = bizName;
+      currentBusinessPrimaryInstance = primaryInst;
+
+      const bizSelect = document.getElementById('businessSelect');
+      if (bizSelect) {
+        bizSelect.value = bizName;
+      }
+
+      populateLineSelectorForCurrentBusiness();
+
+      const instSelect = document.getElementById('instanceSelect');
+      if (instSelect) {
+        instSelect.value = primaryInst;
+        if (!instSelect.value && instSelect.options.length > 0) {
+          instSelect.selectedIndex = 0;
+        }
+      }
+
+      currentInstance = instSelect?.value || primaryInst;
+      const found = instancesList.find(i => i.name === currentInstance);
+      updateConnectionBadge(found || { state: 'closed' });
+
+      updateBusinessOverviewHeader();
+      renderBusinessLinesCard();
+      loadDashboardStats();
+
       switchTab('dashboard');
-      showToast(`Switched workspace to: ${instanceName}`);
+      showToast(`Switched workspace to: ${bizName}`);
+    }
+
+    function switchTenantWorkspace(instanceName) {
+      const foundInst = instancesList.find(i => i.name === instanceName);
+      const bizName = foundInst?.businessName || instanceName;
+      openBusinessWorkspace(bizName, instanceName);
+    }
+
+    function updateBusinessOverviewHeader() {
+      const title = document.getElementById('overviewBizTitle');
+      const badge = document.getElementById('overviewBizLineCountBadge');
+      const linesTitle = document.getElementById('overviewBizLinesTitle');
+
+      const bizName = currentBusiness || 'Business';
+      if (title) title.textContent = `${bizName} Overview`;
+      if (linesTitle) linesTitle.textContent = bizName;
+
+      const lines = instancesList.filter(inst => {
+        const matchBiz = (inst.businessName && currentBusiness && inst.businessName.toLowerCase() === currentBusiness.toLowerCase());
+        const matchPrimary = (inst.primaryInstanceName && currentBusinessPrimaryInstance && inst.primaryInstanceName.toLowerCase() === currentBusinessPrimaryInstance.toLowerCase());
+        const matchDirect = (!inst.businessId && currentBusinessPrimaryInstance && inst.name.toLowerCase() === currentBusinessPrimaryInstance.toLowerCase());
+        return matchBiz || matchPrimary || matchDirect;
+      });
+
+      if (badge) {
+        badge.textContent = `${lines.length} WhatsApp Line${lines.length === 1 ? '' : 's'}`;
+      }
     }
 
     function openResetPasswordModal(id, email) {
@@ -3401,29 +3705,14 @@
       try {
         const instances = await apiRequest('/instances');
         instancesList = instances || [];
-        const select = document.getElementById('instanceSelect');
-        select.innerHTML = '';
 
         if (!instancesList || instancesList.length === 0) {
-          instancesList = [{ name: 'default', state: 'closed', isPrimary: true }];
+          instancesList = [{ name: 'default', state: 'closed', isPrimary: true, businessName: 'Default Business', primaryInstanceName: 'default' }];
         }
 
-        instancesList.forEach(inst => {
-          const opt = document.createElement('option');
-          opt.value = inst.name;
-          const statusText = inst.state === 'open' ? 'Connected' : (inst.state === 'connecting' ? 'Connecting...' : 'Disconnected');
-          const primaryTag = inst.isPrimary ? ' ⭐' : '';
-          const lineLabel = inst.profileName ? ` [${inst.profileName}]` : '';
-          opt.textContent = `${inst.name}${lineLabel} (${statusText})${primaryTag}`;
-          select.appendChild(opt);
-        });
-
-        if (!currentInstance || !instancesList.some(i => i.name === currentInstance)) {
-          currentInstance = instancesList[0].name;
-        }
-        select.value = currentInstance;
-        const currentMeta = instancesList.find(i => i.name === currentInstance);
-        updateConnectionBadge(currentMeta || { state: 'closed' });
+        populateBusinessSelector();
+        populateLineSelectorForCurrentBusiness();
+        updateBusinessOverviewHeader();
         renderBusinessLinesCard();
       } catch (err) {
         console.error('Error loading instances:', err);
@@ -3434,32 +3723,53 @@
       const container = document.getElementById('businessLinesContainer');
       if (!container) return;
 
-      if (!instancesList || instancesList.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-dim); font-size: 13px; grid-column: 1 / -1; padding: 10px 0;">No phone lines configured yet. Click "Add Another WhatsApp Number" to connect your first line.</div>';
+      updateBusinessOverviewHeader();
+
+      const lines = instancesList.filter(inst => {
+        const matchBiz = (inst.businessName && currentBusiness && inst.businessName.toLowerCase() === currentBusiness.toLowerCase());
+        const matchPrimary = (inst.primaryInstanceName && currentBusinessPrimaryInstance && inst.primaryInstanceName.toLowerCase() === currentBusinessPrimaryInstance.toLowerCase());
+        const matchDirect = (!inst.businessId && currentBusinessPrimaryInstance && inst.name.toLowerCase() === currentBusinessPrimaryInstance.toLowerCase());
+        return matchBiz || matchPrimary || matchDirect;
+      });
+
+      if (!lines || lines.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; padding: 24px; text-align: center; background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">
+            <div style="font-size: 26px; margin-bottom: 6px;">📱</div>
+            <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">No WhatsApp lines connected yet for "${escapeHtml(currentBusiness || 'this business')}"</div>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0 14px;">Connect a WhatsApp phone number to start answering customers automatically using this company's AI knowledge.</p>
+            <button onclick="openAddLineModal()" class="btn btn-primary" style="padding: 7px 16px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+              <span>➕</span> Connect WhatsApp Line
+            </button>
+          </div>
+        `;
         return;
       }
 
-      container.innerHTML = instancesList.map(inst => {
+      const cardsHtml = lines.map(inst => {
         const isCurrent = inst.name === currentInstance;
         const isOpen = inst.state === 'open';
         const isConnecting = inst.state === 'connecting';
         const phoneFormatted = inst.number ? `+${inst.number}` : (isOpen ? 'Connected' : 'No phone linked yet');
-        const label = inst.profileName || (inst.isPrimary ? 'Primary Line' : 'Secondary Line');
+        const label = inst.profileName || (inst.isPrimary ? 'Primary Line' : inst.name);
 
         return `
-          <div style="background: var(--bg-card); border: 1px solid ${isCurrent ? 'var(--primary)' : 'var(--border-color)'}; border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; box-shadow: ${isCurrent ? '0 0 10px rgba(59, 130, 246, 0.25)' : 'none'};">
+          <div style="background: var(--bg-card); border: 1px solid ${isCurrent ? 'var(--primary)' : 'var(--border-color)'}; border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; box-shadow: ${isCurrent ? '0 0 12px rgba(59, 130, 246, 0.25)' : 'none'};">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
               <div>
                 <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                   <span>${isOpen ? '🟢' : (isConnecting ? '🟡' : '⚪')}</span>
-                  <span>${escapeHtml(inst.name)}</span>
-                  ${inst.isPrimary ? '<span class="badge-tag" style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; font-size: 9px; padding: 2px 6px;">PRIMARY</span>' : ''}
+                  <span>${escapeHtml(label)}</span>
+                  ${inst.isPrimary ? '<span class="badge-tag" style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; font-size: 9px; padding: 2px 6px;">PRIMARY</span>' : '<span class="badge-tag" style="background: rgba(147, 51, 234, 0.2); color: #d8b4fe; font-size: 9px; padding: 2px 6px;">SECONDARY LINE</span>'}
                 </div>
-                <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
-                  ${escapeHtml(label)}
+                <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 3px; font-family: monospace;">
+                  Instance: ${escapeHtml(inst.name)}
                 </div>
-                <div style="font-size: 11.5px; color: ${isOpen ? '#86efac' : 'var(--text-dim)'}; margin-top: 4px; font-family: monospace;">
+                <div style="font-size: 12px; color: ${isOpen ? '#86efac' : 'var(--text-dim)'}; margin-top: 4px; font-family: monospace; font-weight: 600;">
                   📞 ${escapeHtml(phoneFormatted)}
+                </div>
+                <div style="font-size: 11px; color: #60a5fa; margin-top: 5px; display: flex; align-items: center; gap: 4px;">
+                  <span>🧠</span> <span>Shared Knowledge Base: Active</span>
                 </div>
               </div>
               <span class="status-badge ${isOpen ? 'open' : (isConnecting ? 'connecting pulse' : 'closed')}" style="font-size: 10px; padding: 3px 8px; flex-shrink: 0;">
@@ -3473,7 +3783,7 @@
                   Select Line
                 </button>
               ` : `
-                <span style="font-size: 11px; color: var(--primary); font-weight: 600; padding: 4px 2px;">✓ Selected</span>
+                <span style="font-size: 11px; color: var(--primary); font-weight: 600; padding: 4px 2px;">✓ Selected Line</span>
               `}
               <button onclick="openLineQrModal('${escapeHtml(inst.name)}')" class="btn ${isOpen ? 'btn-secondary' : 'btn-primary'}" style="padding: 4px 9px; font-size: 11px;">
                 ${isOpen ? 'Session / Disconnect' : 'Connect QR'}
@@ -3487,6 +3797,17 @@
           </div>
         `;
       }).join('');
+
+      // Add line placeholder button card
+      const addCardHtml = `
+        <div onclick="openAddLineModal()" style="border: 2px dashed rgba(59, 130, 246, 0.35); border-radius: var(--radius-md); padding: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; background: rgba(59, 130, 246, 0.03); min-height: 130px; transition: all 0.2s ease;" onmouseover="this.style.borderColor='var(--primary)'; this.style.background='rgba(59, 130, 246, 0.08)'" onmouseout="this.style.borderColor='rgba(59, 130, 246, 0.35)'; this.style.background='rgba(59, 130, 246, 0.03)'">
+          <span style="font-size: 24px;">➕</span>
+          <span style="font-weight: 600; font-size: 12.5px; color: var(--primary);">Add Another WhatsApp Line</span>
+          <span style="font-size: 11px; color: var(--text-dim); text-align: center;">Connect sales or support numbers under ${escapeHtml(currentBusiness)}</span>
+        </div>
+      `;
+
+      container.innerHTML = cardsHtml + addCardHtml;
     }
 
     function switchToInstance(instName) {
@@ -3513,20 +3834,31 @@
       }
     }
 
-    function openAddLineModal() {
+    function openAddLineModal(targetBizName, targetPrimaryInst) {
+      const bizName = targetBizName || currentBusiness || 'Default Business';
+      const primaryInst = targetPrimaryInst || currentBusinessPrimaryInstance || currentInstance || 'default';
+
+      const targetInput = document.getElementById('newLineTargetPrimaryInstance');
+      if (targetInput) targetInput.value = primaryInst;
+
+      const displayElem = document.getElementById('newLineTargetBusinessDisplay');
+      if (displayElem) displayElem.innerHTML = `<span>🏢</span> <span>${escapeHtml(bizName)}</span>`;
+
       document.getElementById('newLineName').value = '';
       document.getElementById('newLineInstance').value = '';
       document.getElementById('newLinePhone').value = '';
+
       openModal('addLineModal');
       setTimeout(() => document.getElementById('newLineName').focus(), 100);
     }
 
     function autoSlugLineName() {
       const name = document.getElementById('newLineName').value.trim();
-      const baseInst = currentInstance ? currentInstance.replace(/_[a-z0-9]+$/, '') : 'biz';
+      const primaryInst = document.getElementById('newLineTargetPrimaryInstance')?.value || currentBusinessPrimaryInstance || currentInstance || 'biz';
+      const cleanBase = primaryInst.replace(/_[a-z0-9]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
       const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
       if (slug) {
-        document.getElementById('newLineInstance').value = `${baseInst}_${slug}`;
+        document.getElementById('newLineInstance').value = `${cleanBase}_${slug}`;
       }
     }
 
@@ -3535,6 +3867,7 @@
       const lineName = document.getElementById('newLineName').value.trim();
       const instanceName = document.getElementById('newLineInstance').value.trim();
       const number = document.getElementById('newLinePhone').value.trim();
+      const primaryInstanceName = document.getElementById('newLineTargetPrimaryInstance')?.value || currentBusinessPrimaryInstance || currentInstance;
       const btn = document.getElementById('btnSubmitAddLine');
 
       if (!lineName || !instanceName) {
@@ -3548,7 +3881,7 @@
         const res = await apiRequest('/business/add-line', {
           method: 'POST',
           body: JSON.stringify({
-            primaryInstanceName: currentInstance,
+            primaryInstanceName,
             lineName,
             instanceName,
             number: number || undefined,
@@ -3556,10 +3889,15 @@
         });
 
         closeModal('addLineModal');
-        showToast(res.message || 'New WhatsApp line added to business!');
+        showToast(res.message || `WhatsApp line "${lineName}" added to business!`);
 
-        // Reload instances and switch to new line
+        // Reload data
+        if (currentUser?.role === 'superadmin') {
+          await loadTenants();
+        }
         await loadInstances();
+
+        // Switch to new line
         switchToInstance(instanceName);
 
         // Open QR code modal immediately for easy scanning
@@ -4924,6 +5262,9 @@
       applyUserRoleUi();
       updateSoundUi();
       updatePushBadge();
+      if (currentUser?.role === 'superadmin') {
+        await loadTenants();
+      }
       await loadInstances();
       loadDashboardStats();
       startBackgroundAlertPolling();
@@ -4937,10 +5278,6 @@
             this.value = norm;
           }
         });
-      }
-
-      if (currentUser?.role === 'superadmin') {
-        loadTenants();
       }
     }
 

@@ -272,7 +272,27 @@ export class TenantController {
           }
         }
 
+        let lines: any[] = [];
         if (instance?.id) {
+          const linked = await this.prismaRepository.instance.findMany({
+            where: {
+              OR: [
+                { id: instance.id },
+                { businessId: instance.id },
+              ],
+            },
+            select: { id: true, name: true, number: true, connectionStatus: true, profileName: true },
+          });
+
+          lines = linked.map((l: any) => ({
+            id: l.id,
+            name: l.name,
+            lineName: l.profileName || (l.id === instance.id ? 'Primary Line' : l.name),
+            number: l.number,
+            state: l.connectionStatus,
+            isPrimary: l.id === instance.id,
+          }));
+
           const convCount = await (this.prismaRepository as any).aiConversationState.count({
             where: { instanceId: instance.id },
           });
@@ -302,6 +322,8 @@ export class TenantController {
           instanceName: instance?.name,
           connectionStatus: instance?.connectionStatus || 'closed',
           whatsappNumber: instance?.number,
+          lines,
+          linesCount: lines.length,
           stats,
           createdAt: t.createdAt,
         };

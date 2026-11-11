@@ -266,14 +266,34 @@ export class CustomAiRouter {
           },
         });
 
-        // Enrich with live waMonitor state
+        // Fetch all tenant users to know their business names
+        const tenants = await (this.prismaRepository as any).tenantUser.findMany({
+          select: { id: true, businessName: true, instanceId: true },
+        });
+
+        // Enrich with live waMonitor state and business grouping
         let enriched = instances.map((inst) => {
           const live = this.waMonitor.waInstances[inst.name];
+          const isPrimary = !inst.businessId;
+          const parentInstance = inst.businessId ? instances.find((i) => i.id === inst.businessId) : null;
+          const primaryInstanceName = parentInstance ? parentInstance.name : inst.name;
+
+          // Find associated businessName
+          const targetId = inst.businessId || inst.id;
+          const matchedTenant = tenants.find(
+            (t: any) => t.instanceId === targetId || t.businessName === inst.name || t.instanceId === inst.id,
+          );
+          const businessName = matchedTenant?.businessName || (parentInstance ? parentInstance.name : inst.name);
+          const lineName = inst.profileName || (isPrimary ? 'Primary Line' : inst.name);
+
           return {
             ...inst,
+            businessName,
+            primaryInstanceName,
+            lineName,
+            isPrimary,
             state: live?.connectionStatus?.state || inst.connectionStatus,
             qr: live?.connectionStatus?.qrcode,
-            isPrimary: !inst.businessId,
           };
         });
 
@@ -293,6 +313,9 @@ export class CustomAiRouter {
                 id: 'default',
                 name: 'default',
                 businessId: null,
+                businessName: 'Default Business',
+                primaryInstanceName: 'default',
+                lineName: 'Primary Line',
                 connectionStatus: live?.connectionStatus?.state || 'connecting',
                 number: null,
                 profileName: 'Default',
